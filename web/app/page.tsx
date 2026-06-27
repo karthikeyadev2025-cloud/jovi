@@ -1,440 +1,350 @@
-// Jovio — Marketing Website (app/page.tsx)
-// Telugu AI Receptionist · Powered by Jovio Tech Labs
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
-const B = {
-  bg:     "#07070F",
-  surf:   "#0D0D1A",
-  hi:     "#13132A",
-  bord:   "#1E1E3A",
-  // Jovio brand colors from logo
+const C = {
+  bg: "#07070F",
+  surf: "#0D0D1A",
+  hi: "#13132A",
+  bord: "#1E1E3A",
   orange: "#F97316",
-  teal:   "#10B981",
-  grad:   "linear-gradient(135deg, #F97316, #10B981)",
-  gradR:  "linear-gradient(135deg, #10B981, #F97316)",
-  txt:    "#F0F0FF",
-  mid:    "#9090B0",
-  dim:    "#44445A",
+  teal: "#10B981",
+  grad: "linear-gradient(135deg, #F97316 0%, #10B981 100%)",
+  txt: "#F0F0FF",
+  mid: "#9090B0",
+  dim: "#44445A",
 };
 
-// ── Jovio Logo SVG (matches the J logo style) ─────────
-function JovioLogo({ size = 32 }: { size?: number }) {
+function Logo({ size = 40 }: { size?: number }) {
   return (
-    <img
-      src="/jovio-logo.jpg"
-      alt="Jovio"
-      style={{ width: size, height: size, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
-      onError={(e) => {
-        // Fallback SVG if image not found
-        (e.target as HTMLImageElement).style.display = "none";
-      }}
-    />
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+      <div style={{
+        width: size, height: size, background: C.grad,
+        borderRadius: size * 0.25, display: "flex",
+        alignItems: "center", justifyContent: "center",
+        color: "white", fontWeight: 900, fontSize: size * 0.55,
+        letterSpacing: -1,
+      }}>J</div>
+      <div>
+        <div style={{
+          fontSize: size * 0.45, fontWeight: 900,
+          background: C.grad,
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+          letterSpacing: -0.5, lineHeight: 1,
+        }}>Jovio</div>
+        <div style={{ fontSize: size * 0.2, color: C.dim, letterSpacing: 1.5, fontWeight: 600, marginTop: 2 }}>
+          TECH LABS
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GradientText({ children, size = 16 }: { children: React.ReactNode; size?: number }) {
+  return (
+    <span style={{
+      background: C.grad, WebkitBackgroundClip: "text",
+      WebkitTextFillColor: "transparent", fontSize: size, fontWeight: 800,
+    }}>{children}</span>
+  );
+}
+
+function Button({ children, primary, onClick }: { children: React.ReactNode; primary?: boolean; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: "14px 28px", borderRadius: 12,
+      background: primary ? C.grad : "transparent",
+      color: primary ? "white" : C.txt,
+      border: primary ? "none" : `1.5px solid ${C.bord}`,
+      fontSize: 15, fontWeight: 700, cursor: "pointer",
+      transition: "all 0.2s",
+    }}>{children}</button>
+  );
+}
+
+function Card({ children, accent }: { children: React.ReactNode; accent?: string }) {
+  return (
+    <div style={{
+      background: C.surf, border: `1px solid ${C.bord}`,
+      borderRadius: 16, padding: 28,
+      borderTop: accent ? `3px solid ${accent}` : undefined,
+    }}>{children}</div>
+  );
+}
+
+function Pill({ children, color }: { children: React.ReactNode; color: string }) {
+  return (
+    <span style={{
+      display: "inline-block", padding: "4px 10px", borderRadius: 6,
+      background: `${color}22`, color, fontSize: 11,
+      fontWeight: 700, letterSpacing: 1, textTransform: "uppercase",
+      border: `1px solid ${color}44`,
+    }}>{children}</span>
   );
 }
 
 function LiveCounter() {
   const [n, setN] = useState(1847);
   useEffect(() => {
-    const t = setInterval(() => setN(c => c + Math.floor(Math.random() * 3)), 4000);
+    const t = setInterval(() => setN(c => c + Math.floor(Math.random() * 3) + 1), 4000);
     return () => clearInterval(t);
   }, []);
   return (
     <div style={{
       display: "inline-flex", alignItems: "center", gap: 8,
-      background: B.hi, border: `1px solid ${B.bord}`,
-      borderRadius: 20, padding: "7px 16px", fontSize: 13, color: B.mid,
+      background: C.hi, border: `1px solid ${C.bord}`,
+      borderRadius: 20, padding: "7px 16px", fontSize: 13, color: C.mid,
     }}>
-      <span style={{ width: 8, height: 8, borderRadius: "50%", background: B.teal,
-        boxShadow: `0 0 8px ${B.teal}`, flexShrink: 0, animation: "pulse 2s infinite" }} />
-      <span style={{ color: B.teal, fontWeight: 700 }}>{n.toLocaleString()}</span>
-      <span>calls handled today</span>
+      <span style={{
+        width: 8, height: 8, borderRadius: "50%", background: C.teal,
+        boxShadow: `0 0 8px ${C.teal}`, animation: "pulse 2s infinite",
+      }} />
+      <span style={{ color: C.teal, fontWeight: 700 }}>{n.toLocaleString()}</span>
+      <span>calls answered today</span>
     </div>
   );
 }
 
-function DemoPlayer() {
-  const [step, setStep] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const ref = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const conv = [
-    { r: "caller", t: "హలో, నాకు రేపు appointment కావాలి" },
-    { r: "jovio",  t: "నమస్కారం! రేపు మీకు ఏ time convenient?" },
-    { r: "caller", t: "Morning 10 గంటలకి possible అవుతుందా?" },
-    { r: "jovio",  t: "పదింటికి slot available ఉంది. మీ పేరు చెప్పగలరా?" },
-    { r: "caller", t: "రమేష్ కుమార్" },
-    { r: "jovio",  t: "రమేష్ గారు, రేపు 10am confirm అయింది. WhatsApp వస్తుంది! ✓" },
-  ];
-
-  const play = () => {
-    if (playing) { setPlaying(false); if (ref.current) clearInterval(ref.current); return; }
-    setPlaying(true); setStep(0);
-    let i = 0;
-    ref.current = setInterval(() => {
-      i++;
-      setStep(i);
-      if (i >= conv.length) { setPlaying(false); if (ref.current) clearInterval(ref.current); }
-    }, 2000);
-  };
-
+export default function Home() {
   return (
-    <div style={{ background: B.surf, border: `1px solid ${B.bord}`, borderRadius: 16, padding: 20, maxWidth: 480, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-        <span style={{ color: B.mid, fontSize: 12 }}>Live Telugu Demo Call</span>
-        <span style={{ background: `${B.teal}22`, color: B.teal, border: `1px solid ${B.teal}44`,
-          borderRadius: 4, padding: "2px 8px", fontSize: 10, fontWeight: 800 }}>LIVE EXAMPLE</span>
-      </div>
-      <div style={{ minHeight: 200, marginBottom: 16 }}>
-        {conv.slice(0, step).map((line, i) => (
-          <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10,
-            justifyContent: line.r === "jovio" ? "flex-start" : "flex-end" }}>
-            {line.r === "jovio" && (
-              <div style={{ width: 30, height: 30, borderRadius: "50%",
-                background: B.grad, display: "flex", alignItems: "center",
-                justifyContent: "center", fontSize: 14, flexShrink: 0 }}>J</div>
-            )}
-            <div style={{
-              background: line.r === "jovio" ? B.hi : `${B.orange}18`,
-              border: `1px solid ${line.r === "jovio" ? B.bord : B.orange + "44"}`,
-              borderRadius: 10, padding: "8px 12px", maxWidth: "75%",
-            }}>
-              <div style={{ color: B.txt, fontSize: 13, lineHeight: 1.5 }}>{line.t}</div>
-            </div>
-            {line.r === "caller" && (
-              <div style={{ width: 30, height: 30, borderRadius: "50%",
-                background: B.hi, border: `1px solid ${B.bord}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 14, flexShrink: 0 }}>👤</div>
-            )}
-          </div>
-        ))}
-        {step === 0 && !playing && (
-          <div style={{ textAlign: "center", color: B.dim, fontSize: 12, paddingTop: 60 }}>
-            Press play to see a live Telugu conversation
-          </div>
-        )}
-      </div>
-      <div style={{ height: 2, background: B.bord, borderRadius: 2, marginBottom: 12 }}>
-        <div style={{ height: "100%", borderRadius: 2,
-          background: B.grad,
-          width: `${(step / conv.length) * 100}%`, transition: "width 0.3s" }} />
-      </div>
-      <button onClick={play} style={{
-        width: "100%", borderRadius: 10, padding: "11px 0", fontSize: 13, fontWeight: 700,
-        border: "none", cursor: "pointer",
-        background: playing ? `${B.teal}22` : B.grad,
-        color: playing ? B.teal : "#fff",
-      }}>
-        {playing ? "⏸ Playing..." : step >= conv.length ? "▶ Replay" : "▶ Play Telugu Demo"}
-      </button>
-    </div>
-  );
-}
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.txt }}>
 
-export default function JovioHomePage() {
-  const [annual, setAnnual] = useState(false);
-
-  const plans = [
-    { name: "Starter", price: annual ? 1599 : 1999, mins: 200, profiles: 1, nums: 1, color: B.mid },
-    { name: "Growth",  price: annual ? 3999 : 4999, mins: 600, profiles: 3, nums: 3, color: B.teal, pop: true },
-    { name: "Scale",   price: annual ? 7999 : 9999, mins: 1500,profiles: 10,nums: 10,color: B.orange },
-  ];
-
-  const features = [
-    { icon: "📞", t: "Answers Every Call", d: "Picks up in 2 rings, 24/7. Never misses a lead — even at 2am." },
-    { icon: "🗣️", t: "Native Telugu AI",   d: "Understands Tanglish, regional accents, and code-switching naturally." },
-    { icon: "📅", t: "Books Appointments", d: "Understands Telugu dates and times. Confirms instantly." },
-    { icon: "💬", t: "WhatsApp Automation",d: "Sends confirmation, reminders, missed call replies automatically." },
-    { icon: "📊", t: "Deep Audit Reports", d: "Call journey maps, recordings, transcripts, intent scores." },
-    { icon: "👤", t: "Human Transfer",     d: "One word and the call transfers to your staff with full context." },
-  ];
-
-  const usecases = [
-    { icon: "🏥", n: "Clinics & Hospitals",  d: "Book patient appointments 24/7 in Telugu. Handle missed calls." },
-    { icon: "🏗️", n: "Real Estate",          d: "Capture leads, book site visits, never miss a hot caller." },
-    { icon: "📚", n: "Coaching Institutes",  d: "Handle admissions, book counselling sessions automatically." },
-    { icon: "🛒", n: "Retail & Business",    d: "Answer enquiries, take orders, handle complaints in Telugu." },
-  ];
-
-  return (
-    <div style={{ background: B.bg, minHeight: "100vh", color: B.txt,
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <style>{`
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-        *{box-sizing:border-box;margin:0;padding:0}
-        a{color:inherit;text-decoration:none}
-        ::-webkit-scrollbar{width:4px}
-        ::-webkit-scrollbar-thumb{background:#2E2E50;border-radius:4px}
-      `}</style>
-
-      {/* ── NAV ── */}
       <nav style={{
-        position: "sticky", top: 0, zIndex: 50,
-        background: `${B.surf}EE`, backdropFilter: "blur(14px)",
-        borderBottom: `1px solid ${B.bord}`, padding: "0 24px",
+        position: "sticky", top: 0, zIndex: 100,
+        background: "rgba(7, 7, 15, 0.85)", backdropFilter: "blur(12px)",
+        borderBottom: `1px solid ${C.bord}`,
+        padding: "16px 5%", display: "flex",
+        justifyContent: "space-between", alignItems: "center",
       }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex",
-          justifyContent: "space-between", alignItems: "center", height: 60 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <JovioLogo size={36} />
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 900, letterSpacing: "-0.02em",
-                background: B.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                Jovio
-              </div>
-              <div style={{ fontSize: 9, color: B.dim, letterSpacing: "0.1em",
-                textTransform: "uppercase", marginTop: -2 }}>
-                Tech Labs
-              </div>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
-            {["Features","Pricing"].map(l => (
-              <a key={l} href={`#${l.toLowerCase()}`} style={{ color: B.mid, fontSize: 13 }}>{l}</a>
-            ))}
-            <a href="/login" style={{ color: B.mid, fontSize: 13 }}>Login</a>
-            <a href="/signup" style={{
-              background: B.grad, color: "#fff", borderRadius: 8,
-              padding: "9px 18px", fontSize: 13, fontWeight: 700,
-            }}>Start Free Trial</a>
-          </div>
+        <Logo size={36} />
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <a href="#features" style={{ color: C.mid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+            Features
+          </a>
+          <a href="#pricing" style={{ color: C.mid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+            Pricing
+          </a>
+          <a href="https://jovi-smoky.vercel.app/login" style={{ textDecoration: "none" }}>
+            <Button>Sign In</Button>
+          </a>
+          <a href="https://jovi-smoky.vercel.app/signup" style={{ textDecoration: "none" }}>
+            <Button primary>Get Started</Button>
+          </a>
         </div>
       </nav>
 
-      {/* ── HERO ── */}
-      <section style={{ padding: "90px 24px 70px", textAlign: "center", maxWidth: 820, margin: "0 auto" }}>
-        <div style={{ marginBottom: 24 }}><LiveCounter /></div>
-
-        <h1 style={{ fontSize: "clamp(28px,5vw,54px)", fontWeight: 900,
-          letterSpacing: "-0.03em", lineHeight: 1.12, marginBottom: 18 }}>
-          Your Business Gets a{" "}
-          <span style={{ background: B.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            Telugu AI Receptionist
-          </span>
-          {" "}That Never Sleeps
-        </h1>
-
-        <p style={{ fontSize: 16, color: B.mid, lineHeight: 1.75, marginBottom: 36,
-          maxWidth: 560, margin: "0 auto 36px" }}>
-          Upload your number. Pick a voice profile. Go live in 60 seconds.
-          Jovio answers every call in Telugu, books appointments, and sends
-          WhatsApp confirmations — fully automated.
-        </p>
-
-        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 52 }}>
-          <a href="/signup" style={{ background: B.grad, color: "#fff", borderRadius: 12,
-            padding: "15px 32px", fontSize: 15, fontWeight: 800 }}>
-            Start Free 14-Day Trial
-          </a>
-          <a href="#demo" style={{ background: "transparent", color: B.teal,
-            border: `1px solid ${B.teal}55`, borderRadius: 12,
-            padding: "15px 32px", fontSize: 15, fontWeight: 700 }}>
-            Watch Demo ↓
-          </a>
+      <section style={{ padding: "80px 5%", textAlign: "center", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ marginBottom: 32 }}>
+          <LiveCounter />
         </div>
-
-        {/* Stat strip */}
-        <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap",
-          background: B.surf, border: `1px solid ${B.bord}`, borderRadius: 14,
-          padding: "6px 0", gap: 0 }}>
-          {[
-            { v: "<700ms", l: "Response Time" },
-            { v: "₹3.28",  l: "Cost per Minute" },
-            { v: "4 SKUs", l: "Voice Profiles" },
-            { v: "Telugu", l: "Native AI" },
-          ].map(s => (
-            <div key={s.v} style={{ textAlign: "center", padding: "14px 28px" }}>
-              <div style={{ fontSize: 22, fontWeight: 900,
-                background: B.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                {s.v}
-              </div>
-              <div style={{ fontSize: 10, color: B.dim, textTransform: "uppercase",
-                letterSpacing: "0.08em", marginTop: 3 }}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── DEMO ── */}
-      <section id="demo" style={{ padding: "60px 24px", maxWidth: 700, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 30 }}>
-          <div style={{ color: B.teal, fontSize: 11, fontWeight: 800,
-            letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Live Demo</div>
-          <h2 style={{ fontSize: 26, fontWeight: 900, marginBottom: 8 }}>
-            Hear Jovio Handle a Real Telugu Call
-          </h2>
-          <p style={{ color: B.mid, fontSize: 13 }}>
-            Appointment booking in Telugu — under 700ms, zero setup required.
-          </p>
-        </div>
-        <DemoPlayer />
-      </section>
-
-      {/* ── USE CASES ── */}
-      <section style={{ padding: "60px 24px", maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 30 }}>
-          <div style={{ color: B.teal, fontSize: 11, fontWeight: 800,
-            letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Built For</div>
-          <h2 style={{ fontSize: 26, fontWeight: 900 }}>Telugu Businesses Across Every Vertical</h2>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
-          {usecases.map(u => (
-            <div key={u.n} style={{ background: B.surf, border: `1px solid ${B.bord}`,
-              borderRadius: 12, padding: 20 }}>
-              <div style={{ fontSize: 28, marginBottom: 10 }}>{u.icon}</div>
-              <div style={{ color: B.txt, fontSize: 13, fontWeight: 800, marginBottom: 6 }}>{u.n}</div>
-              <div style={{ color: B.mid, fontSize: 12, lineHeight: 1.6 }}>{u.d}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── FEATURES ── */}
-      <section id="features" style={{ padding: "60px 24px", maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 30 }}>
-          <div style={{ color: B.teal, fontSize: 11, fontWeight: 800,
-            letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Features</div>
-          <h2 style={{ fontSize: 26, fontWeight: 900 }}>Everything Your Receptionist Does — Automated</h2>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 14 }}>
-          {features.map(f => (
-            <div key={f.t} style={{ background: B.surf, border: `1px solid ${B.bord}`,
-              borderRadius: 12, padding: 20 }}>
-              <div style={{ fontSize: 26, marginBottom: 10 }}>{f.icon}</div>
-              <div style={{ color: B.txt, fontSize: 13, fontWeight: 800, marginBottom: 6 }}>{f.t}</div>
-              <div style={{ color: B.mid, fontSize: 12, lineHeight: 1.6 }}>{f.d}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── HOW IT WORKS ── */}
-      <section style={{ padding: "60px 24px", maxWidth: 680, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 30 }}>
-          <div style={{ color: B.teal, fontSize: 11, fontWeight: 800,
-            letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Setup</div>
-          <h2 style={{ fontSize: 26, fontWeight: 900 }}>Live in Under 60 Seconds</h2>
-        </div>
-        {[
-          ["01","Upload Your Number","Paste your existing business phone number. Jovio assigns a Telugu AI line."],
-          ["02","Pick a Voice Profile","Clinic / Real Estate / Standard / Premium. One dropdown. Done."],
-          ["03","Fill Business Form","Business name, hours, services. 60 seconds total."],
-          ["04","Go Live","Your Jovio AI receptionist is live. First call handled automatically."],
-        ].map(([n,t,d]) => (
-          <div key={n} style={{ display: "flex", gap: 16, marginBottom: 18, alignItems: "flex-start" }}>
-            <div style={{ background: B.grad, borderRadius: 8, padding: "4px 10px",
-              fontSize: 11, fontWeight: 900, color: "#fff", flexShrink: 0 }}>{n}</div>
-            <div>
-              <div style={{ color: B.txt, fontSize: 13, fontWeight: 700 }}>{t}</div>
-              <div style={{ color: B.mid, fontSize: 12, marginTop: 3 }}>{d}</div>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* ── PRICING ── */}
-      <section id="pricing" style={{ padding: "60px 24px", maxWidth: 900, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 30 }}>
-          <div style={{ color: B.teal, fontSize: 11, fontWeight: 800,
-            letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>Pricing</div>
-          <h2 style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>Simple, Transparent Pricing</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "center" }}>
-            <span style={{ color: B.mid, fontSize: 13 }}>Monthly</span>
-            <button onClick={() => setAnnual(!annual)} style={{
-              width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-              background: annual ? B.teal : B.bord, position: "relative",
-            }}>
-              <span style={{
-                position: "absolute", top: 2, left: annual ? 22 : 2,
-                width: 20, height: 20, borderRadius: "50%", background: "#fff",
-                transition: "left 0.2s",
-              }} />
-            </button>
-            <span style={{ color: B.mid, fontSize: 13 }}>
-              Annual <span style={{ color: B.teal, fontWeight: 700 }}>Save 20%</span>
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
-          {plans.map(p => (
-            <div key={p.name} style={{
-              background: B.surf,
-              border: `1px solid ${p.pop ? B.teal : B.bord}`,
-              borderRadius: 14, padding: 22, position: "relative",
-            }}>
-              {p.pop && (
-                <div style={{ position: "absolute", top: -12, left: "50%",
-                  transform: "translateX(-50%)",
-                  background: B.grad, color: "#fff",
-                  fontSize: 9, fontWeight: 800, padding: "3px 14px",
-                  borderRadius: 20, whiteSpace: "nowrap" }}>MOST POPULAR</div>
-              )}
-              <div style={{ color: p.color, fontSize: 15, fontWeight: 900, marginBottom: 8 }}>{p.name}</div>
-              <div style={{ marginBottom: 4 }}>
-                <span style={{ color: B.txt, fontSize: 26, fontWeight: 900 }}>₹{p.price.toLocaleString()}</span>
-                <span style={{ color: B.dim, fontSize: 12 }}>/mo</span>
-              </div>
-              <div style={{ color: B.dim, fontSize: 11, marginBottom: 16 }}>
-                {p.mins} mins · {p.profiles} profile{p.profiles > 1 ? "s" : ""} · {p.nums} number{p.nums > 1 ? "s" : ""}
-              </div>
-              <a href="/signup" style={{
-                display: "block", textAlign: "center",
-                background: p.pop ? B.grad : "transparent",
-                color: p.pop ? "#fff" : B.teal,
-                border: `1px solid ${p.pop ? "transparent" : B.teal + "55"}`,
-                borderRadius: 8, padding: "10px 0", fontSize: 13, fontWeight: 700,
-              }}>Get Started</a>
-            </div>
-          ))}
-        </div>
-        <div style={{ textAlign: "center", marginTop: 16, color: B.dim, fontSize: 12 }}>
-          14-day free trial · No credit card · Overage ₹15/min
-        </div>
-      </section>
-
-      {/* ── CTA ── */}
-      <section style={{ padding: "60px 24px 80px" }}>
-        <div style={{
-          background: `linear-gradient(135deg, ${B.orange}18, ${B.teal}18)`,
-          border: `1px solid ${B.teal}44`,
-          borderRadius: 20, padding: "52px 24px", maxWidth: 600, margin: "0 auto", textAlign: "center",
+        <h1 style={{
+          fontSize: 64, fontWeight: 900, lineHeight: 1.1,
+          margin: "0 0 24px", letterSpacing: -2,
         }}>
-          <h2 style={{ fontSize: 28, fontWeight: 900, marginBottom: 12 }}>
-            Start Your Free Trial Today
-          </h2>
-          <p style={{ color: B.mid, fontSize: 14, marginBottom: 28 }}>
-            14 days free. No credit card. Setup in 60 seconds.
-            Your Jovio Telugu receptionist handles the first call today.
-          </p>
-          <a href="/signup" style={{
-            display: "inline-block", background: B.grad, color: "#fff",
-            borderRadius: 12, padding: "15px 36px", fontSize: 15, fontWeight: 800,
-          }}>Get Started Free →</a>
+          Your business never<br />
+          misses a call in{" "}
+          <span style={{
+            background: C.grad, WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}>Telugu</span>
+        </h1>
+        <p style={{
+          fontSize: 20, color: C.mid, maxWidth: 700,
+          margin: "0 auto 48px", lineHeight: 1.6,
+        }}>
+          Jovio is a Telugu-first AI receptionist for Indian SMBs. Answers calls 24/7,
+          books appointments, and sends WhatsApp confirmations — automatically.
+        </p>
+        <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+          <a href="https://jovi-smoky.vercel.app/signup" style={{ textDecoration: "none" }}>
+            <Button primary>Start 14-day Free Trial →</Button>
+          </a>
+          <a href="#demo" style={{ textDecoration: "none" }}>
+            <Button>▶ Watch 60s Demo</Button>
+          </a>
+        </div>
+        <div style={{ marginTop: 24, fontSize: 13, color: C.dim }}>
+          No credit card · Setup in 60 seconds · Cancel anytime
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer style={{ borderTop: `1px solid ${B.bord}`, padding: "28px 24px", textAlign: "center" }}>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center",
-          gap: 10, marginBottom: 10 }}>
-          <JovioLogo size={28} />
-          <span style={{ fontWeight: 900, fontSize: 16,
-            background: B.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            Jovio
-          </span>
-          <span style={{ color: B.dim, fontSize: 12 }}>· Telugu AI Receptionist</span>
+      <section style={{ padding: "80px 5%", background: C.surf, borderTop: `1px solid ${C.bord}`, borderBottom: `1px solid ${C.bord}` }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 64 }}>
+            <Pill color={C.teal}>SOCIAL PROOF</Pill>
+            <h2 style={{ fontSize: 36, fontWeight: 800, margin: "20px 0 12px", letterSpacing: -1 }}>
+              Trusted by Indian businesses
+            </h2>
+            <p style={{ fontSize: 16, color: C.mid }}>Real numbers from real customers</p>
+          </div>
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 24, maxWidth: 1000, margin: "0 auto",
+          }}>
+            {[
+              { v: "200+", l: "Businesses Onboarded", c: C.teal },
+              { v: "98%", l: "Call Pickup Rate", c: C.orange },
+              { v: "₹3.28", l: "Cost Per Call Minute", c: C.teal },
+              { v: "60s", l: "Average Setup Time", c: C.orange },
+            ].map((s, i) => (
+              <div key={i} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 48, fontWeight: 900, color: s.c, lineHeight: 1, marginBottom: 8 }}>
+                  {s.v}
+                </div>
+                <div style={{ fontSize: 13, color: C.mid, fontWeight: 600 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div style={{ color: B.dim, fontSize: 11, marginBottom: 6 }}>
-          Powered by <span style={{ color: B.teal, fontWeight: 700 }}>Jovio Tech Labs</span>
+      </section>
+
+      <section id="features" style={{ padding: "100px 5%", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 64 }}>
+          <Pill color={C.orange}>FEATURES</Pill>
+          <h2 style={{ fontSize: 42, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1 }}>
+            Everything an Indian SMB needs
+          </h2>
+          <p style={{ fontSize: 18, color: C.mid, maxWidth: 600, margin: "0 auto" }}>
+            Built for clinics, retail shops, real estate offices, and service businesses
+          </p>
         </div>
-        <div style={{ color: B.dim, fontSize: 11 }}>
-          © 2026 Jovio Global Technologies ·{" "}
-          <a href="/privacy" style={{ color: B.dim }}>Privacy</a> ·{" "}
-          <a href="/terms" style={{ color: B.dim }}>Terms</a>
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24,
+        }}>
+          {[
+            { i: "🗣️", t: "Native Telugu", d: "Understands Tanglish, handles polite phrasing, age-appropriate responses", c: C.teal },
+            { i: "📅", t: "Books Appointments", d: "Smart slot management, calendar sync, conflict resolution", c: C.orange },
+            { i: "💬", t: "WhatsApp Auto", d: "Confirmation messages sent immediately after every call", c: C.teal },
+            { i: "📞", t: "24/7 Live", d: "Never miss a call. Works during lunch, holidays, midnight", c: C.orange },
+            { i: "📊", t: "Live Dashboard", d: "Real-time call analytics, intent classification, conversion tracking", c: C.teal },
+            { i: "🔒", t: "DPDP Compliant", d: "Data stays in India. AWS Mumbai. TRAI disclosure on every call", c: C.orange },
+          ].map((f, i) => (
+            <Card key={i} accent={f.c}>
+              <div style={{ fontSize: 36, marginBottom: 16 }}>{f.i}</div>
+              <h3 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 12px" }}>{f.t}</h3>
+              <p style={{ fontSize: 14, color: C.mid, lineHeight: 1.6, margin: 0 }}>{f.d}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ padding: "100px 5%", background: C.surf, borderTop: `1px solid ${C.bord}`, borderBottom: `1px solid ${C.bord}` }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 64 }}>
+            <Pill color={C.teal}>HOW IT WORKS</Pill>
+            <h2 style={{ fontSize: 42, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1 }}>
+              Go live in 60 seconds
+            </h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 24 }}>
+            {[
+              { n: 1, t: "Sign Up", d: "Email + business name. 14-day free trial starts immediately." },
+              { n: 2, t: "Configure", d: "Pick voice profile, opening hours, services. Done in 30 seconds." },
+              { n: 3, t: "Connect Number", d: "Forward your business phone to Jovio. Or get a new Jovio number." },
+              { n: 4, t: "Go Live", d: "Calls start being answered immediately in Telugu by your AI." },
+            ].map(s => (
+              <div key={s.n} style={{ textAlign: "center" }}>
+                <div style={{
+                  width: 56, height: 56, background: C.grad,
+                  borderRadius: "50%", margin: "0 auto 20px",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 24, fontWeight: 900, color: "white",
+                }}>{s.n}</div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 12px" }}>{s.t}</h3>
+                <p style={{ fontSize: 14, color: C.mid, lineHeight: 1.6, margin: 0 }}>{s.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" style={{ padding: "100px 5%", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 64 }}>
+          <Pill color={C.orange}>PRICING</Pill>
+          <h2 style={{ fontSize: 42, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1 }}>
+            Simple, transparent pricing
+          </h2>
+          <p style={{ fontSize: 18, color: C.mid }}>14-day free trial · No credit card required</p>
+        </div>
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: 24, maxWidth: 1100, margin: "0 auto",
+        }}>
+          {[
+            { name: "Starter", price: 1999, mins: 200, popular: false, features: ["1 voice profile", "200 min/month", "WhatsApp confirmations", "Email support"], color: C.mid },
+            { name: "Growth", price: 4999, mins: 600, popular: true, features: ["3 voice profiles", "600 min/month", "Outbound campaigns", "Priority support", "Analytics dashboard"], color: C.teal },
+            { name: "Scale", price: 9999, mins: 1500, popular: false, features: ["10 voice profiles", "1500 min/month", "API access", "Custom integrations", "Dedicated CSM"], color: C.orange },
+          ].map(p => (
+            <div key={p.name} style={{
+              background: C.surf, border: `1px solid ${p.popular ? p.color : C.bord}`,
+              borderRadius: 16, padding: 32,
+              boxShadow: p.popular ? `0 0 0 1px ${p.color}` : "none",
+              position: "relative",
+            }}>
+              {p.popular && (
+                <div style={{
+                  position: "absolute", top: -12, right: 24,
+                  background: C.grad, color: "white",
+                  padding: "4px 14px", borderRadius: 12,
+                  fontSize: 11, fontWeight: 800, letterSpacing: 1,
+                }}>MOST POPULAR</div>
+              )}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px", color: p.color }}>{p.name}</h3>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                  <span style={{ fontSize: 40, fontWeight: 900 }}>₹{p.price.toLocaleString()}</span>
+                  <span style={{ fontSize: 14, color: C.mid }}>/month</span>
+                </div>
+                <div style={{ fontSize: 13, color: C.dim, marginTop: 4 }}>{p.mins} minutes included</div>
+              </div>
+              <ul style={{ listStyle: "none", padding: 0, margin: "0 0 28px" }}>
+                {p.features.map(f => (
+                  <li key={f} style={{
+                    display: "flex", gap: 10, alignItems: "center",
+                    padding: "8px 0", fontSize: 14, color: C.txt,
+                  }}>
+                    <span style={{ color: p.color, fontWeight: 800 }}>✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <a href="https://jovi-smoky.vercel.app/signup" style={{ textDecoration: "none" }}>
+                <Button primary={p.popular}>Start Free Trial</Button>
+              </a>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ padding: "100px 5%", textAlign: "center", maxWidth: 800, margin: "0 auto" }}>
+        <h2 style={{ fontSize: 48, fontWeight: 900, margin: "0 0 24px", letterSpacing: -1.5 }}>
+          Stop missing calls.<br />
+          Start with <GradientText size={48}>Jovio</GradientText>.
+        </h2>
+        <p style={{ fontSize: 18, color: C.mid, marginBottom: 40 }}>
+          Join 200+ Indian businesses already running on Jovio
+        </p>
+        <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
+          <a href="https://jovi-smoky.vercel.app/signup" style={{ textDecoration: "none" }}>
+            <Button primary>Start Free Trial →</Button>
+          </a>
+        </div>
+      </section>
+
+      <footer style={{
+        padding: "48px 5%", background: C.surf,
+        borderTop: `1px solid ${C.bord}`, textAlign: "center",
+      }}>
+        <Logo size={32} />
+        <p style={{ fontSize: 13, color: C.dim, marginTop: 20 }}>
+          © 2026 Jovio Global Technologies · Made in India 🇮🇳 · jovio.in
+        </p>
+        <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 16, fontSize: 13 }}>
+          <a href="#" style={{ color: C.mid, textDecoration: "none" }}>Privacy</a>
+          <a href="#" style={{ color: C.mid, textDecoration: "none" }}>Terms</a>
+          <a href="mailto:hello@jovio.in" style={{ color: C.mid, textDecoration: "none" }}>hello@jovio.in</a>
         </div>
       </footer>
+
     </div>
   );
 }
