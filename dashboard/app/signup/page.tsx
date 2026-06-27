@@ -1,13 +1,15 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "../../lib/supabase";
 
-const C = {
-  bg: "#07070F", surf: "#0D0D1A", hi: "#13132A", bord: "#1E1E3A",
-  orange: "#F97316", teal: "#10B981",
-  grad: "linear-gradient(135deg, #F97316 0%, #10B981 100%)",
-  txt: "#F0F0FF", mid: "#9090B0", dim: "#44445A", red: "#EF4444",
+const J = {
+  bg: "#070B19", vault: "#111827", surface: "#1A2235",
+  border: "#1F2937", borderHi: "#374151",
+  mercury: "#00E676", surya: "#F59E0B", chandra: "#F8FAFC",
+  textMid: "#9CA3AF", textDim: "#4B5563", red: "#EF4444",
+  grad: "linear-gradient(135deg, #F59E0B 0%, #00E676 100%)",
 };
 
 export default function SignupPage() {
@@ -22,17 +24,14 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
       setLoading(false);
       return;
     }
-
     const sb = createClient();
     const { error: err } = await sb.auth.signUp({
-      email,
-      password,
+      email, password,
       options: {
         data: { business_name: businessName },
         emailRedirectTo: window.location.origin + "/dashboard",
@@ -45,25 +44,27 @@ export default function SignupPage() {
 
   if (done) {
     return (
-      <div style={{ minHeight: "100vh", background: C.bg, display: "flex",
+      <div style={{ minHeight: "100vh", background: J.bg, display: "flex",
         alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div style={{
-          background: C.surf, border: `1px solid ${C.bord}`,
-          borderRadius: 16, padding: 40, maxWidth: 400, textAlign: "center",
+          background: J.vault, border: `1px solid ${J.border}`,
+          borderRadius: 16, padding: 40, maxWidth: 420, textAlign: "center",
         }}>
+          <Image src="/jovio-logo.jpeg" alt="Jovio" width={64} height={64}
+            style={{ borderRadius: 12, objectFit: "cover", marginBottom: 16 }} />
           <div style={{ fontSize: 56, marginBottom: 16 }}>📧</div>
-          <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8, color: C.txt }}>
+          <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8, color: J.chandra }}>
             Check your email
           </h2>
-          <p style={{ color: C.mid, fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
+          <p style={{ color: J.textMid, fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
             We sent a confirmation link to<br />
-            <span style={{ color: C.teal, fontWeight: 700 }}>{email}</span>
+            <span style={{ color: J.mercury, fontWeight: 700 }}>{email}</span>
           </p>
-          <p style={{ color: C.dim, fontSize: 12, marginBottom: 24 }}>
+          <p style={{ color: J.textDim, fontSize: 12, marginBottom: 24 }}>
             Click the link to verify your account and start your 14-day free trial.
           </p>
           <Link href="/login" style={{
-            display: "inline-block", background: C.grad, color: "white",
+            display: "inline-block", background: J.grad, color: J.bg,
             padding: "12px 28px", borderRadius: 10, textDecoration: "none",
             fontWeight: 700, fontSize: 14,
           }}>Go to Sign In</Link>
@@ -73,48 +74,39 @@ export default function SignupPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex",
+    <div style={{ minHeight: "100vh", background: J.bg, display: "flex",
       alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
+      <div style={{ width: "100%", maxWidth: 420 }}>
 
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <div style={{
-              width: 48, height: 48, background: C.grad, borderRadius: 12,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "white", fontWeight: 900, fontSize: 28,
-            }}>J</div>
-            <div>
-              <div style={{
-                fontSize: 24, fontWeight: 900,
-                background: C.grad, WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent", letterSpacing: -0.5,
-              }}>Jovio</div>
-              <div style={{ fontSize: 9, color: C.dim, letterSpacing: 1.5, fontWeight: 600 }}>
-                TECH LABS
-              </div>
-            </div>
-          </div>
-          <div style={{ color: C.mid, fontSize: 14 }}>
-            Start your 14-day free trial. No credit card.
+          <Image
+            src="/jovio-logo.jpeg" alt="Jovio" width={88} height={88}
+            priority style={{ borderRadius: 16, objectFit: "cover", marginBottom: 16 }}
+          />
+          <h1 style={{
+            fontSize: 22, fontWeight: 800, color: J.chandra,
+            margin: "0 0 6px", letterSpacing: -0.5,
+          }}>Start your free trial</h1>
+          <div style={{ color: J.textMid, fontSize: 14 }}>
+            14 days free · No credit card required
           </div>
         </div>
 
         <div style={{
-          background: C.surf, border: `1px solid ${C.bord}`,
+          background: J.vault, border: `1px solid ${J.border}`,
           borderRadius: 16, padding: 32,
         }}>
           <form onSubmit={handleSignup}>
             {error && (
               <div style={{
-                background: `${C.red}22`, color: C.red,
+                background: `${J.red}22`, color: J.red,
                 padding: "10px 12px", borderRadius: 8,
                 fontSize: 13, marginBottom: 16,
-                border: `1px solid ${C.red}44`,
+                border: `1px solid ${J.red}44`,
               }}>{error}</div>
             )}
 
-            <label style={{ display: "block", color: C.mid, fontSize: 12, marginBottom: 6, fontWeight: 600 }}>
+            <label style={{ display: "block", color: J.textMid, fontSize: 11, marginBottom: 6, fontWeight: 700, letterSpacing: 0.5 }}>
               BUSINESS NAME
             </label>
             <input
@@ -122,12 +114,12 @@ export default function SignupPage() {
               required placeholder="Ravi Clinic, Banjara Hills"
               style={{
                 width: "100%", padding: "12px 14px", fontSize: 14,
-                background: C.hi, border: `1px solid ${C.bord}`, borderRadius: 10,
-                color: C.txt, marginBottom: 14, outline: "none",
+                background: J.surface, border: `1px solid ${J.border}`, borderRadius: 10,
+                color: J.chandra, marginBottom: 14, outline: "none",
               }}
             />
 
-            <label style={{ display: "block", color: C.mid, fontSize: 12, marginBottom: 6, fontWeight: 600 }}>
+            <label style={{ display: "block", color: J.textMid, fontSize: 11, marginBottom: 6, fontWeight: 700, letterSpacing: 0.5 }}>
               EMAIL
             </label>
             <input
@@ -135,42 +127,42 @@ export default function SignupPage() {
               required placeholder="you@business.in"
               style={{
                 width: "100%", padding: "12px 14px", fontSize: 14,
-                background: C.hi, border: `1px solid ${C.bord}`, borderRadius: 10,
-                color: C.txt, marginBottom: 14, outline: "none",
+                background: J.surface, border: `1px solid ${J.border}`, borderRadius: 10,
+                color: J.chandra, marginBottom: 14, outline: "none",
               }}
             />
 
-            <label style={{ display: "block", color: C.mid, fontSize: 12, marginBottom: 6, fontWeight: 600 }}>
-              PASSWORD <span style={{ color: C.dim, fontWeight: 400 }}>(min 8 characters)</span>
+            <label style={{ display: "block", color: J.textMid, fontSize: 11, marginBottom: 6, fontWeight: 700, letterSpacing: 0.5 }}>
+              PASSWORD <span style={{ color: J.textDim, fontWeight: 400, letterSpacing: 0 }}>(min 8 chars)</span>
             </label>
             <input
               type="password" value={password} onChange={e => setPassword(e.target.value)}
               required minLength={8} placeholder="••••••••"
               style={{
                 width: "100%", padding: "12px 14px", fontSize: 14,
-                background: C.hi, border: `1px solid ${C.bord}`, borderRadius: 10,
-                color: C.txt, marginBottom: 20, outline: "none",
+                background: J.surface, border: `1px solid ${J.border}`, borderRadius: 10,
+                color: J.chandra, marginBottom: 20, outline: "none",
               }}
             />
 
             <button type="submit" disabled={loading} style={{
               width: "100%", padding: "13px", fontSize: 15, fontWeight: 700,
-              background: loading ? C.hi : C.grad,
-              color: "white", border: "none", borderRadius: 10,
+              background: loading ? J.surface : J.grad,
+              color: loading ? J.textMid : J.bg, border: "none", borderRadius: 10,
               cursor: loading ? "wait" : "pointer", marginBottom: 10,
             }}>
               {loading ? "Creating account..." : "Start Free Trial →"}
             </button>
 
-            <p style={{ fontSize: 11, color: C.dim, textAlign: "center", margin: 0 }}>
+            <p style={{ fontSize: 11, color: J.textDim, textAlign: "center", margin: 0 }}>
               By signing up you agree to Jovio's Terms and Privacy Policy.
             </p>
           </form>
         </div>
 
-        <div style={{ textAlign: "center", marginTop: 24, fontSize: 13, color: C.mid }}>
+        <div style={{ textAlign: "center", marginTop: 24, fontSize: 13, color: J.textMid }}>
           Already have an account?{" "}
-          <Link href="/login" style={{ color: C.teal, fontWeight: 700, textDecoration: "none" }}>
+          <Link href="/login" style={{ color: J.mercury, fontWeight: 700, textDecoration: "none" }}>
             Sign in →
           </Link>
         </div>

@@ -1,13 +1,15 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "../../lib/supabase";
 
-const C = {
-  bg: "#07070F", surf: "#0D0D1A", hi: "#13132A", bord: "#1E1E3A",
-  orange: "#F97316", teal: "#10B981",
-  grad: "linear-gradient(135deg, #F97316 0%, #10B981 100%)",
-  txt: "#F0F0FF", mid: "#9090B0", dim: "#44445A", red: "#EF4444",
+const J = {
+  bg: "#070B19", vault: "#111827", surface: "#1A2235",
+  border: "#1F2937", borderHi: "#374151",
+  mercury: "#00E676", surya: "#F59E0B", chandra: "#F8FAFC",
+  textMid: "#9CA3AF", textDim: "#4B5563", red: "#EF4444",
+  grad: "linear-gradient(135deg, #F59E0B 0%, #00E676 100%)",
 };
 
 export default function LoginPage() {
@@ -35,48 +37,43 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex",
+    <div style={{ minHeight: "100vh", background: J.bg, display: "flex",
       alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
+      <div style={{ width: "100%", maxWidth: 420 }}>
 
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <div style={{
-              width: 48, height: 48, background: C.grad, borderRadius: 12,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "white", fontWeight: 900, fontSize: 28,
-            }}>J</div>
-            <div>
-              <div style={{
-                fontSize: 24, fontWeight: 900,
-                background: C.grad, WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent", letterSpacing: -0.5,
-              }}>Jovio</div>
-              <div style={{ fontSize: 9, color: C.dim, letterSpacing: 1.5, fontWeight: 600 }}>
-                TECH LABS
-              </div>
-            </div>
-          </div>
-          <div style={{ color: C.mid, fontSize: 14 }}>
-            Welcome back. Sign in to continue.
+          <Image
+            src="/jovio-logo.jpeg"
+            alt="Jovio"
+            width={88}
+            height={88}
+            priority
+            style={{ borderRadius: 16, objectFit: "cover", marginBottom: 16 }}
+          />
+          <h1 style={{
+            fontSize: 22, fontWeight: 800,
+            color: J.chandra, margin: "0 0 6px", letterSpacing: -0.5,
+          }}>Welcome back</h1>
+          <div style={{ color: J.textMid, fontSize: 14 }}>
+            Sign in to your Jovio account
           </div>
         </div>
 
         <div style={{
-          background: C.surf, border: `1px solid ${C.bord}`,
+          background: J.vault, border: `1px solid ${J.border}`,
           borderRadius: 16, padding: 32,
         }}>
           <form onSubmit={handleLogin}>
             {error && (
               <div style={{
-                background: `${C.red}22`, color: C.red,
+                background: `${J.red}22`, color: J.red,
                 padding: "10px 12px", borderRadius: 8,
                 fontSize: 13, marginBottom: 16,
-                border: `1px solid ${C.red}44`,
+                border: `1px solid ${J.red}44`,
               }}>{error}</div>
             )}
 
-            <label style={{ display: "block", color: C.mid, fontSize: 12, marginBottom: 6, fontWeight: 600 }}>
+            <label style={{ display: "block", color: J.textMid, fontSize: 11, marginBottom: 6, fontWeight: 700, letterSpacing: 0.5 }}>
               EMAIL
             </label>
             <input
@@ -84,12 +81,12 @@ export default function LoginPage() {
               required placeholder="you@business.in"
               style={{
                 width: "100%", padding: "12px 14px", fontSize: 14,
-                background: C.hi, border: `1px solid ${C.bord}`, borderRadius: 10,
-                color: C.txt, marginBottom: 16, outline: "none",
+                background: J.surface, border: `1px solid ${J.border}`, borderRadius: 10,
+                color: J.chandra, marginBottom: 16, outline: "none",
               }}
             />
 
-            <label style={{ display: "block", color: C.mid, fontSize: 12, marginBottom: 6, fontWeight: 600 }}>
+            <label style={{ display: "block", color: J.textMid, fontSize: 11, marginBottom: 6, fontWeight: 700, letterSpacing: 0.5 }}>
               PASSWORD
             </label>
             <input
@@ -97,15 +94,15 @@ export default function LoginPage() {
               required placeholder="••••••••"
               style={{
                 width: "100%", padding: "12px 14px", fontSize: 14,
-                background: C.hi, border: `1px solid ${C.bord}`, borderRadius: 10,
-                color: C.txt, marginBottom: 20, outline: "none",
+                background: J.surface, border: `1px solid ${J.border}`, borderRadius: 10,
+                color: J.chandra, marginBottom: 20, outline: "none",
               }}
             />
 
             <button type="submit" disabled={loading} style={{
               width: "100%", padding: "13px", fontSize: 15, fontWeight: 700,
-              background: loading ? C.hi : C.grad,
-              color: "white", border: "none", borderRadius: 10,
+              background: loading ? J.surface : J.grad,
+              color: loading ? J.textMid : J.bg, border: "none", borderRadius: 10,
               cursor: loading ? "wait" : "pointer", marginBottom: 16,
             }}>
               {loading ? "Signing in..." : "Sign In →"}
@@ -113,17 +110,17 @@ export default function LoginPage() {
 
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
-              color: C.dim, fontSize: 11, margin: "16px 0",
+              color: J.textDim, fontSize: 11, margin: "16px 0",
             }}>
-              <div style={{ flex: 1, height: 1, background: C.bord }} />
+              <div style={{ flex: 1, height: 1, background: J.border }} />
               OR
-              <div style={{ flex: 1, height: 1, background: C.bord }} />
+              <div style={{ flex: 1, height: 1, background: J.border }} />
             </div>
 
             <button type="button" onClick={handleGoogle} style={{
               width: "100%", padding: "12px", fontSize: 14, fontWeight: 600,
-              background: C.hi, color: C.txt,
-              border: `1px solid ${C.bord}`, borderRadius: 10, cursor: "pointer",
+              background: J.surface, color: J.chandra,
+              border: `1px solid ${J.border}`, borderRadius: 10, cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
             }}>
               <span style={{ fontSize: 16 }}>🔑</span> Continue with Google
@@ -131,9 +128,9 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <div style={{ textAlign: "center", marginTop: 24, fontSize: 13, color: C.mid }}>
+        <div style={{ textAlign: "center", marginTop: 24, fontSize: 13, color: J.textMid }}>
           New to Jovio?{" "}
-          <Link href="/signup" style={{ color: C.teal, fontWeight: 700, textDecoration: "none" }}>
+          <Link href="/signup" style={{ color: J.mercury, fontWeight: 700, textDecoration: "none" }}>
             Start free trial →
           </Link>
         </div>

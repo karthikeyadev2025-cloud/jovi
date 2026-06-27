@@ -1,19 +1,25 @@
-// app/layout.tsx  — Root layout
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Jovio — Telugu AI Receptionist — Jovio",
-  description: "Your business never misses a call",
+  title: "Jovio Dashboard — Telugu AI Receptionist",
+  description: "Manage your Jovio voice profiles, view live calls, appointments, and analytics.",
+  icons: {
+    icon: "/jovio-logo.jpeg",
+    apple: "/jovio-logo.jpeg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#070B19",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, background: "#07070D", color: "#EEEEFF",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

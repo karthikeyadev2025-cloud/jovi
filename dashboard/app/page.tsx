@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase";
 
 export default function Home() {
@@ -14,17 +15,13 @@ export default function Home() {
   }, [router]);
   return (
     <div style={{
-      minHeight: "100vh", background: "#07070F", color: "#F0F0FF",
+      minHeight: "100vh", background: "#070B19", color: "#F8FAFC",
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
       <div style={{ textAlign: "center" }}>
-        <div style={{
-          width: 60, height: 60, margin: "0 auto 16px",
-          background: "linear-gradient(135deg, #F97316, #10B981)",
-          borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center",
-          color: "white", fontWeight: 900, fontSize: 32, animation: "pulse 1.5s infinite",
-        }}>J</div>
-        <p style={{ color: "#9090B0", fontSize: 14 }}>Loading Jovio...</p>
+        <Image src="/jovio-logo.jpeg" alt="Jovio" width={72} height={72}
+          priority style={{ borderRadius: 14, objectFit: "cover", marginBottom: 16, animation: "pulse 1.5s infinite" }} />
+        <p style={{ color: "#9CA3AF", fontSize: 14, margin: 0 }}>Loading Jovio...</p>
       </div>
     </div>
   );

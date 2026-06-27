@@ -1,82 +1,68 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
-const C = {
-  bg: "#07070F",
-  surf: "#0D0D1A",
-  hi: "#13132A",
-  bord: "#1E1E3A",
-  orange: "#F97316",
-  teal: "#10B981",
-  grad: "linear-gradient(135deg, #F97316 0%, #10B981 100%)",
-  txt: "#F0F0FF",
-  mid: "#9090B0",
-  dim: "#44445A",
+const J = {
+  bg: "#070B19",
+  vault: "#111827",
+  surface: "#1A2235",
+  border: "#1F2937",
+  borderHi: "#374151",
+  mercury: "#00E676",
+  surya: "#F59E0B",
+  chandra: "#F8FAFC",
+  textMid: "#9CA3AF",
+  textDim: "#4B5563",
+  grad: "linear-gradient(135deg, #F59E0B 0%, #00E676 100%)",
 };
 
-function Logo({ size = 40 }: { size?: number }) {
+function Logo({ size = 40, showText = true }: { size?: number; showText?: boolean }) {
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-      <div style={{
-        width: size, height: size, background: C.grad,
-        borderRadius: size * 0.25, display: "flex",
-        alignItems: "center", justifyContent: "center",
-        color: "white", fontWeight: 900, fontSize: size * 0.55,
-        letterSpacing: -1,
-      }}>J</div>
-      <div>
-        <div style={{
-          fontSize: size * 0.45, fontWeight: 900,
-          background: C.grad,
-          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          letterSpacing: -0.5, lineHeight: 1,
-        }}>Jovio</div>
-        <div style={{ fontSize: size * 0.2, color: C.dim, letterSpacing: 1.5, fontWeight: 600, marginTop: 2 }}>
-          TECH LABS
+      <Image
+        src="/jovio-logo.jpeg"
+        alt="Jovio"
+        width={size}
+        height={size}
+        priority
+        style={{ borderRadius: size * 0.18, objectFit: "cover", flexShrink: 0 }}
+      />
+      {showText && (
+        <div style={{ lineHeight: 1.1 }}>
+          <div style={{
+            fontSize: size * 0.5, fontWeight: 900,
+            background: J.grad, WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent", letterSpacing: -0.5,
+          }}>Jovio</div>
+          <div style={{
+            fontSize: size * 0.18, color: J.textMid,
+            letterSpacing: 1.5, fontWeight: 600, marginTop: 2,
+          }}>GLOBAL TECHNOLOGIES</div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function GradientText({ children, size = 16 }: { children: React.ReactNode; size?: number }) {
+function Button({ children, primary, href }: { children: React.ReactNode; primary?: boolean; href: string }) {
   return (
-    <span style={{
-      background: C.grad, WebkitBackgroundClip: "text",
-      WebkitTextFillColor: "transparent", fontSize: size, fontWeight: 800,
-    }}>{children}</span>
-  );
-}
-
-function Button({ children, primary, onClick }: { children: React.ReactNode; primary?: boolean; onClick?: () => void }) {
-  return (
-    <button onClick={onClick} style={{
-      padding: "14px 28px", borderRadius: 12,
-      background: primary ? C.grad : "transparent",
-      color: primary ? "white" : C.txt,
-      border: primary ? "none" : `1.5px solid ${C.bord}`,
-      fontSize: 15, fontWeight: 700, cursor: "pointer",
-      transition: "all 0.2s",
-    }}>{children}</button>
-  );
-}
-
-function Card({ children, accent }: { children: React.ReactNode; accent?: string }) {
-  return (
-    <div style={{
-      background: C.surf, border: `1px solid ${C.bord}`,
-      borderRadius: 16, padding: 28,
-      borderTop: accent ? `3px solid ${accent}` : undefined,
-    }}>{children}</div>
+    <a href={href} style={{
+      display: "inline-block", padding: "13px 28px", borderRadius: 10,
+      background: primary ? J.grad : "transparent",
+      color: primary ? J.bg : J.chandra,
+      border: primary ? "none" : `1.5px solid ${J.border}`,
+      fontSize: 14, fontWeight: 700, cursor: "pointer",
+      transition: "all 0.2s", textDecoration: "none",
+    }}>{children}</a>
   );
 }
 
 function Pill({ children, color }: { children: React.ReactNode; color: string }) {
   return (
     <span style={{
-      display: "inline-block", padding: "4px 10px", borderRadius: 6,
+      display: "inline-block", padding: "5px 12px", borderRadius: 6,
       background: `${color}22`, color, fontSize: 11,
-      fontWeight: 700, letterSpacing: 1, textTransform: "uppercase",
+      fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase",
       border: `1px solid ${color}44`,
     }}>{children}</span>
   );
@@ -91,14 +77,14 @@ function LiveCounter() {
   return (
     <div style={{
       display: "inline-flex", alignItems: "center", gap: 8,
-      background: C.hi, border: `1px solid ${C.bord}`,
-      borderRadius: 20, padding: "7px 16px", fontSize: 13, color: C.mid,
+      background: J.surface, border: `1px solid ${J.border}`,
+      borderRadius: 24, padding: "8px 18px", fontSize: 13, color: J.textMid,
     }}>
       <span style={{
-        width: 8, height: 8, borderRadius: "50%", background: C.teal,
-        boxShadow: `0 0 8px ${C.teal}`, animation: "pulse 2s infinite",
+        width: 8, height: 8, borderRadius: "50%", background: J.mercury,
+        boxShadow: `0 0 12px ${J.mercury}`, animation: "pulse 2s infinite",
       }} />
-      <span style={{ color: C.teal, fontWeight: 700 }}>{n.toLocaleString()}</span>
+      <span style={{ color: J.mercury, fontWeight: 800 }}>{n.toLocaleString()}</span>
       <span>calls answered today</span>
     </div>
   );
@@ -106,91 +92,87 @@ function LiveCounter() {
 
 export default function Home() {
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, color: C.txt }}>
+    <div style={{ minHeight: "100vh", background: J.bg, color: J.chandra }}>
 
       <nav style={{
         position: "sticky", top: 0, zIndex: 100,
-        background: "rgba(7, 7, 15, 0.85)", backdropFilter: "blur(12px)",
-        borderBottom: `1px solid ${C.bord}`,
+        background: "rgba(7, 11, 25, 0.85)", backdropFilter: "blur(12px)",
+        borderBottom: `1px solid ${J.border}`,
         padding: "16px 5%", display: "flex",
         justifyContent: "space-between", alignItems: "center",
       }}>
         <Logo size={36} />
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <a href="#features" style={{ color: C.mid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+          <a href="#features" style={{ color: J.textMid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             Features
           </a>
-          <a href="#pricing" style={{ color: C.mid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+          <a href="#pricing" style={{ color: J.textMid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
             Pricing
           </a>
-          <a href="https://jovi-smoky.vercel.app/login" style={{ textDecoration: "none" }}>
-            <Button>Sign In</Button>
-          </a>
-          <a href="https://jovi-smoky.vercel.app/signup" style={{ textDecoration: "none" }}>
-            <Button primary>Get Started</Button>
-          </a>
+          <Button href="https://jovi-smoky.vercel.app/login">Sign In</Button>
+          <Button primary href="https://jovi-smoky.vercel.app/signup">Get Started</Button>
         </div>
       </nav>
 
-      <section style={{ padding: "80px 5%", textAlign: "center", maxWidth: 1200, margin: "0 auto" }}>
-        <div style={{ marginBottom: 32 }}>
+      <section style={{ padding: "100px 5% 80px", textAlign: "center", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ marginBottom: 36 }}>
           <LiveCounter />
         </div>
         <h1 style={{
-          fontSize: 64, fontWeight: 900, lineHeight: 1.1,
-          margin: "0 0 24px", letterSpacing: -2,
+          fontSize: 72, fontWeight: 900, lineHeight: 1.05,
+          margin: "0 0 28px", letterSpacing: -2.5,
         }}>
           Your business never<br />
           misses a call in{" "}
           <span style={{
-            background: C.grad, WebkitBackgroundClip: "text",
+            background: J.grad, WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
           }}>Telugu</span>
         </h1>
         <p style={{
-          fontSize: 20, color: C.mid, maxWidth: 700,
+          fontSize: 20, color: J.textMid, maxWidth: 700,
           margin: "0 auto 48px", lineHeight: 1.6,
         }}>
           Jovio is a Telugu-first AI receptionist for Indian SMBs. Answers calls 24/7,
           books appointments, and sends WhatsApp confirmations — automatically.
         </p>
-        <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-          <a href="https://jovi-smoky.vercel.app/signup" style={{ textDecoration: "none" }}>
-            <Button primary>Start 14-day Free Trial →</Button>
-          </a>
-          <a href="#demo" style={{ textDecoration: "none" }}>
-            <Button>▶ Watch 60s Demo</Button>
-          </a>
+        <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+          <Button primary href="https://jovi-smoky.vercel.app/signup">Start 14-day Free Trial →</Button>
+          <Button href="#demo">▶ Watch 60s Demo</Button>
         </div>
-        <div style={{ marginTop: 24, fontSize: 13, color: C.dim }}>
+        <div style={{ marginTop: 28, fontSize: 13, color: J.textDim }}>
           No credit card · Setup in 60 seconds · Cancel anytime
         </div>
       </section>
 
-      <section style={{ padding: "80px 5%", background: C.surf, borderTop: `1px solid ${C.bord}`, borderBottom: `1px solid ${C.bord}` }}>
+      <section style={{
+        padding: "80px 5%", background: J.vault,
+        borderTop: `1px solid ${J.border}`, borderBottom: `1px solid ${J.border}`,
+      }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <Pill color={C.teal}>SOCIAL PROOF</Pill>
-            <h2 style={{ fontSize: 36, fontWeight: 800, margin: "20px 0 12px", letterSpacing: -1 }}>
-              Trusted by Indian businesses
+            <Pill color={J.mercury}>TRUSTED BY INDIAN SMBS</Pill>
+            <h2 style={{ fontSize: 38, fontWeight: 800, margin: "20px 0 12px", letterSpacing: -1 }}>
+              Numbers that matter
             </h2>
-            <p style={{ fontSize: 16, color: C.mid }}>Real numbers from real customers</p>
           </div>
           <div style={{
             display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 24, maxWidth: 1000, margin: "0 auto",
+            gap: 32, maxWidth: 1000, margin: "0 auto",
           }}>
             {[
-              { v: "200+", l: "Businesses Onboarded", c: C.teal },
-              { v: "98%", l: "Call Pickup Rate", c: C.orange },
-              { v: "₹3.28", l: "Cost Per Call Minute", c: C.teal },
-              { v: "60s", l: "Average Setup Time", c: C.orange },
+              { v: "200+", l: "Businesses Onboarded", c: J.mercury },
+              { v: "98%", l: "Call Pickup Rate", c: J.surya },
+              { v: "₹3.28", l: "Cost Per Call Minute", c: J.mercury },
+              { v: "60s", l: "Average Setup Time", c: J.surya },
             ].map((s, i) => (
               <div key={i} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 48, fontWeight: 900, color: s.c, lineHeight: 1, marginBottom: 8 }}>
+                <div style={{ fontSize: 52, fontWeight: 900, color: s.c, lineHeight: 1, marginBottom: 8 }}>
                   {s.v}
                 </div>
-                <div style={{ fontSize: 13, color: C.mid, fontWeight: 600 }}>{s.l}</div>
+                <div style={{ fontSize: 13, color: J.textMid, fontWeight: 600, letterSpacing: 0.5 }}>
+                  {s.l}
+                </div>
               </div>
             ))}
           </div>
@@ -199,43 +181,51 @@ export default function Home() {
 
       <section id="features" style={{ padding: "100px 5%", maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 64 }}>
-          <Pill color={C.orange}>FEATURES</Pill>
-          <h2 style={{ fontSize: 42, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1 }}>
+          <Pill color={J.surya}>FEATURES</Pill>
+          <h2 style={{ fontSize: 44, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1.5 }}>
             Everything an Indian SMB needs
           </h2>
-          <p style={{ fontSize: 18, color: C.mid, maxWidth: 600, margin: "0 auto" }}>
-            Built for clinics, retail shops, real estate offices, and service businesses
+          <p style={{ fontSize: 18, color: J.textMid, maxWidth: 600, margin: "0 auto" }}>
+            Built for clinics, retail shops, real estate offices, service businesses
           </p>
         </div>
         <div style={{
-          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24,
+          display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20,
         }}>
           {[
-            { i: "🗣️", t: "Native Telugu", d: "Understands Tanglish, handles polite phrasing, age-appropriate responses", c: C.teal },
-            { i: "📅", t: "Books Appointments", d: "Smart slot management, calendar sync, conflict resolution", c: C.orange },
-            { i: "💬", t: "WhatsApp Auto", d: "Confirmation messages sent immediately after every call", c: C.teal },
-            { i: "📞", t: "24/7 Live", d: "Never miss a call. Works during lunch, holidays, midnight", c: C.orange },
-            { i: "📊", t: "Live Dashboard", d: "Real-time call analytics, intent classification, conversion tracking", c: C.teal },
-            { i: "🔒", t: "DPDP Compliant", d: "Data stays in India. AWS Mumbai. TRAI disclosure on every call", c: C.orange },
+            { i: "🗣️", t: "Native Telugu", d: "Understands Tanglish, polite phrasing, age-appropriate responses", c: J.mercury },
+            { i: "📅", t: "Books Appointments", d: "Smart slot management, calendar sync, conflict resolution", c: J.surya },
+            { i: "💬", t: "WhatsApp Auto", d: "Confirmation messages sent immediately after every call", c: J.mercury },
+            { i: "📞", t: "24/7 Live", d: "Never miss a call. Works during lunch, holidays, midnight", c: J.surya },
+            { i: "📊", t: "Live Dashboard", d: "Real-time analytics, intent classification, conversion tracking", c: J.mercury },
+            { i: "🔒", t: "DPDP Compliant", d: "Data stays in India. AWS Mumbai. TRAI disclosure on every call", c: J.surya },
           ].map((f, i) => (
-            <Card key={i} accent={f.c}>
+            <div key={i} style={{
+              background: J.vault, border: `1px solid ${J.border}`,
+              borderRadius: 16, padding: 28, borderTop: `3px solid ${f.c}`,
+            }}>
               <div style={{ fontSize: 36, marginBottom: 16 }}>{f.i}</div>
-              <h3 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 12px" }}>{f.t}</h3>
-              <p style={{ fontSize: 14, color: C.mid, lineHeight: 1.6, margin: 0 }}>{f.d}</p>
-            </Card>
+              <h3 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 12px", color: J.chandra }}>
+                {f.t}
+              </h3>
+              <p style={{ fontSize: 14, color: J.textMid, lineHeight: 1.6, margin: 0 }}>{f.d}</p>
+            </div>
           ))}
         </div>
       </section>
 
-      <section style={{ padding: "100px 5%", background: C.surf, borderTop: `1px solid ${C.bord}`, borderBottom: `1px solid ${C.bord}` }}>
+      <section style={{
+        padding: "100px 5%", background: J.vault,
+        borderTop: `1px solid ${J.border}`, borderBottom: `1px solid ${J.border}`,
+      }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <Pill color={C.teal}>HOW IT WORKS</Pill>
-            <h2 style={{ fontSize: 42, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1 }}>
+            <Pill color={J.mercury}>HOW IT WORKS</Pill>
+            <h2 style={{ fontSize: 44, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1.5 }}>
               Go live in 60 seconds
             </h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 28 }}>
             {[
               { n: 1, t: "Sign Up", d: "Email + business name. 14-day free trial starts immediately." },
               { n: 2, t: "Configure", d: "Pick voice profile, opening hours, services. Done in 30 seconds." },
@@ -244,13 +234,13 @@ export default function Home() {
             ].map(s => (
               <div key={s.n} style={{ textAlign: "center" }}>
                 <div style={{
-                  width: 56, height: 56, background: C.grad,
+                  width: 60, height: 60, background: J.grad,
                   borderRadius: "50%", margin: "0 auto 20px",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 24, fontWeight: 900, color: "white",
+                  fontSize: 26, fontWeight: 900, color: J.bg,
                 }}>{s.n}</div>
-                <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 12px" }}>{s.t}</h3>
-                <p style={{ fontSize: 14, color: C.mid, lineHeight: 1.6, margin: 0 }}>{s.d}</p>
+                <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 12px", color: J.chandra }}>{s.t}</h3>
+                <p style={{ fontSize: 14, color: J.textMid, lineHeight: 1.6, margin: 0 }}>{s.d}</p>
               </div>
             ))}
           </div>
@@ -259,23 +249,23 @@ export default function Home() {
 
       <section id="pricing" style={{ padding: "100px 5%", maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 64 }}>
-          <Pill color={C.orange}>PRICING</Pill>
-          <h2 style={{ fontSize: 42, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1 }}>
+          <Pill color={J.surya}>PRICING</Pill>
+          <h2 style={{ fontSize: 44, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1.5 }}>
             Simple, transparent pricing
           </h2>
-          <p style={{ fontSize: 18, color: C.mid }}>14-day free trial · No credit card required</p>
+          <p style={{ fontSize: 18, color: J.textMid }}>14-day free trial · No credit card required</p>
         </div>
         <div style={{
           display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
           gap: 24, maxWidth: 1100, margin: "0 auto",
         }}>
           {[
-            { name: "Starter", price: 1999, mins: 200, popular: false, features: ["1 voice profile", "200 min/month", "WhatsApp confirmations", "Email support"], color: C.mid },
-            { name: "Growth", price: 4999, mins: 600, popular: true, features: ["3 voice profiles", "600 min/month", "Outbound campaigns", "Priority support", "Analytics dashboard"], color: C.teal },
-            { name: "Scale", price: 9999, mins: 1500, popular: false, features: ["10 voice profiles", "1500 min/month", "API access", "Custom integrations", "Dedicated CSM"], color: C.orange },
+            { name: "Starter", price: 1999, mins: 200, popular: false, features: ["1 voice profile", "200 min/month", "WhatsApp confirmations", "Email support"], color: J.textMid },
+            { name: "Growth", price: 4999, mins: 600, popular: true, features: ["3 voice profiles", "600 min/month", "Outbound campaigns", "Priority support", "Analytics dashboard"], color: J.mercury },
+            { name: "Scale", price: 9999, mins: 1500, popular: false, features: ["10 voice profiles", "1500 min/month", "API access", "Custom integrations", "Dedicated CSM"], color: J.surya },
           ].map(p => (
             <div key={p.name} style={{
-              background: C.surf, border: `1px solid ${p.popular ? p.color : C.bord}`,
+              background: J.vault, border: `1px solid ${p.popular ? p.color : J.border}`,
               borderRadius: 16, padding: 32,
               boxShadow: p.popular ? `0 0 0 1px ${p.color}` : "none",
               position: "relative",
@@ -283,7 +273,7 @@ export default function Home() {
               {p.popular && (
                 <div style={{
                   position: "absolute", top: -12, right: 24,
-                  background: C.grad, color: "white",
+                  background: J.grad, color: J.bg,
                   padding: "4px 14px", borderRadius: 12,
                   fontSize: 11, fontWeight: 800, letterSpacing: 1,
                 }}>MOST POPULAR</div>
@@ -291,57 +281,57 @@ export default function Home() {
               <div style={{ marginBottom: 24 }}>
                 <h3 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px", color: p.color }}>{p.name}</h3>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                  <span style={{ fontSize: 40, fontWeight: 900 }}>₹{p.price.toLocaleString()}</span>
-                  <span style={{ fontSize: 14, color: C.mid }}>/month</span>
+                  <span style={{ fontSize: 44, fontWeight: 900, color: J.chandra }}>₹{p.price.toLocaleString()}</span>
+                  <span style={{ fontSize: 14, color: J.textMid }}>/month</span>
                 </div>
-                <div style={{ fontSize: 13, color: C.dim, marginTop: 4 }}>{p.mins} minutes included</div>
+                <div style={{ fontSize: 13, color: J.textDim, marginTop: 4 }}>{p.mins} minutes included</div>
               </div>
               <ul style={{ listStyle: "none", padding: 0, margin: "0 0 28px" }}>
                 {p.features.map(f => (
                   <li key={f} style={{
                     display: "flex", gap: 10, alignItems: "center",
-                    padding: "8px 0", fontSize: 14, color: C.txt,
+                    padding: "8px 0", fontSize: 14, color: J.chandra,
                   }}>
                     <span style={{ color: p.color, fontWeight: 800 }}>✓</span>
                     {f}
                   </li>
                 ))}
               </ul>
-              <a href="https://jovi-smoky.vercel.app/signup" style={{ textDecoration: "none" }}>
-                <Button primary={p.popular}>Start Free Trial</Button>
-              </a>
+              <Button primary={p.popular} href="https://jovi-smoky.vercel.app/signup">
+                Start Free Trial
+              </Button>
             </div>
           ))}
         </div>
       </section>
 
-      <section style={{ padding: "100px 5%", textAlign: "center", maxWidth: 800, margin: "0 auto" }}>
-        <h2 style={{ fontSize: 48, fontWeight: 900, margin: "0 0 24px", letterSpacing: -1.5 }}>
+      <section style={{ padding: "120px 5%", textAlign: "center", maxWidth: 800, margin: "0 auto" }}>
+        <h2 style={{ fontSize: 56, fontWeight: 900, margin: "0 0 24px", letterSpacing: -2 }}>
           Stop missing calls.<br />
-          Start with <GradientText size={48}>Jovio</GradientText>.
+          Start with{" "}
+          <span style={{
+            background: J.grad, WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}>Jovio</span>.
         </h2>
-        <p style={{ fontSize: 18, color: C.mid, marginBottom: 40 }}>
+        <p style={{ fontSize: 18, color: J.textMid, marginBottom: 40 }}>
           Join 200+ Indian businesses already running on Jovio
         </p>
-        <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-          <a href="https://jovi-smoky.vercel.app/signup" style={{ textDecoration: "none" }}>
-            <Button primary>Start Free Trial →</Button>
-          </a>
-        </div>
+        <Button primary href="https://jovi-smoky.vercel.app/signup">Start Free Trial →</Button>
       </section>
 
       <footer style={{
-        padding: "48px 5%", background: C.surf,
-        borderTop: `1px solid ${C.bord}`, textAlign: "center",
+        padding: "48px 5%", background: J.vault,
+        borderTop: `1px solid ${J.border}`, textAlign: "center",
       }}>
-        <Logo size={32} />
-        <p style={{ fontSize: 13, color: C.dim, marginTop: 20 }}>
+        <Logo size={36} />
+        <p style={{ fontSize: 13, color: J.textDim, marginTop: 20 }}>
           © 2026 Jovio Global Technologies · Made in India 🇮🇳 · jovio.in
         </p>
         <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 16, fontSize: 13 }}>
-          <a href="#" style={{ color: C.mid, textDecoration: "none" }}>Privacy</a>
-          <a href="#" style={{ color: C.mid, textDecoration: "none" }}>Terms</a>
-          <a href="mailto:hello@jovio.in" style={{ color: C.mid, textDecoration: "none" }}>hello@jovio.in</a>
+          <a href="#" style={{ color: J.textMid, textDecoration: "none" }}>Privacy</a>
+          <a href="#" style={{ color: J.textMid, textDecoration: "none" }}>Terms</a>
+          <a href="mailto:hello@jovio.in" style={{ color: J.textMid, textDecoration: "none" }}>hello@jovio.in</a>
         </div>
       </footer>
 
