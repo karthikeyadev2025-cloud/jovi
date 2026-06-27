@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "K² Vob — Telugu AI Receptionist",
+  title: "Jovio — Telugu AI Receptionist — Jovio",
   description: "Your business never misses a call",
 };
 

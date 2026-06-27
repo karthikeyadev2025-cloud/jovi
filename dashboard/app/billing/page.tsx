@@ -100,7 +100,7 @@ export default function BillingPage() {
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
       amount,
       currency: "INR",
-      name: "K² Vob",
+      name: "Jovio",
       description: `${plan.name} Plan — ${annual ? "Annual" : "Monthly"}`,
       prefill: { email: "", contact: "" },
       theme: { color: C.glow },

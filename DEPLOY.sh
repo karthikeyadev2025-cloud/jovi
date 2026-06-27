@@ -1,11 +1,11 @@
-# K² Vob — Deployment Guide
+# Jovio — Deployment Guide
 # Run these commands in order. Everything deploys in ~30 minutes.
 
 # ══════════════════════════════════════
 # STEP 1: SUPABASE DATABASE (5 min)
 # ══════════════════════════════════════
 # 1. Go to: https://supabase.com/dashboard
-# 2. Open your k2vob project
+# 2. Open your jovio project
 # 3. SQL Editor → New Query
 # 4. Paste contents of supabase/001_schema.sql
 # 5. Click RUN → should say "Success"
@@ -20,17 +20,17 @@
 # 1. Go to: https://railway.app → New Project
 # 2. Deploy from GitHub → select your repo → select /voice-pipeline folder
 # 3. Add ALL environment variables from .env.example (fill in your real values)
-# 4. Deploy → wait ~3 min → get URL like: https://k2vob-pipeline.up.railway.app
-# 5. Test: curl https://k2vob-pipeline.up.railway.app/health
-#    Should return: {"status":"ok","service":"k2vob-voice-pipeline"}
+# 4. Deploy → wait ~3 min → get URL like: https://jovio-pipeline.up.railway.app
+# 5. Test: curl https://jovio-pipeline.up.railway.app/health
+#    Should return: {"status":"ok","service":"jovio-voice-pipeline"}
 
 # ══════════════════════════════════════
 # STEP 3: MARKETING WEBSITE — Vercel (5 min)
 # ══════════════════════════════════════
 
 # Create Next.js app:
-npx create-next-app@latest k2vob-web --typescript --tailwind --app --no-src-dir --no-import-alias
-cd k2vob-web
+npx create-next-app@latest jovio-web --typescript --tailwind --app --no-src-dir --no-import-alias
+cd jovio-web
 
 # Copy our page.tsx:
 cp ../web/page.tsx app/page.tsx
@@ -46,10 +46,10 @@ npm run dev
 # Deploy to Vercel:
 npm i -g vercel
 vercel --prod
-# Follow prompts → get URL like: https://k2vob.vercel.app
+# Follow prompts → get URL like: https://jovio.vercel.app
 
-# Custom domain (if you bought k2vob.in):
-# Vercel dashboard → your project → Settings → Domains → Add k2vob.in
+# Custom domain (if you bought jovio.in):
+# Vercel dashboard → your project → Settings → Domains → Add jovio.in
 
 # ══════════════════════════════════════
 # STEP 4: DASHBOARD — Vercel (10 min)
@@ -86,7 +86,7 @@ vercel --prod
 # 2. ExoPhone → your DID number → Settings
 # 3. Set App Type: Connector
 # 4. Connector: Custom
-# 5. URL: https://k2vob-pipeline.up.railway.app/api/v1/call/inbound
+# 5. URL: https://jovio-pipeline.up.railway.app/api/v1/call/inbound
 # 6. Method: POST
 # 7. Add custom header:
 #    X-Internal-Secret: (your INTERNAL_SECRET value from .env)

@@ -42,9 +42,9 @@ export default function LoginPage() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.glow,
               boxShadow: "0 0 10px " + C.glow }} />
-            <span style={{ fontSize: 22, fontWeight: 900, color: C.txt }}>K² Vob</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: C.txt }}>Jovio</span>
           </div>
-          <div style={{ color: C.mid, fontSize: 13 }}>Telugu AI Receptionist</div>
+          <div style={{ color: C.mid, fontSize: 13 }}>Telugu AI Receptionist — Jovio</div>
         </div>
 
         <div style={{ background: C.surf, border: "1px solid " + C.bord,

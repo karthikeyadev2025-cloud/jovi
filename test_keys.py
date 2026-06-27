@@ -1,5 +1,5 @@
 """
-K² Vob — API Key Tester
+Jovio — API Key Tester
 Run: python test_keys.py
 Tests all your API keys and tells you exactly what works
 """
@@ -27,7 +27,7 @@ async def test_sarvam_tts():
                 "https://api.sarvam.ai/text-to-speech",
                 headers={"api-subscription-key": SARVAM_KEY, "Content-Type": "application/json"},
                 json={
-                    "inputs": ["నమస్కారం! ఇది K² Vob Telugu AI రిసెప్షనిస్ట్."],
+                    "inputs": ["నమస్కారం! ఇది Jovio Telugu AI రిసెప్షనిస్ట్."],
                     "target_language_code": "te-IN",
                     "speaker": "meera",
                     "model": "bulbul:v3",
@@ -154,7 +154,7 @@ async def test_livekit():
 
 async def main():
     print("=" * 50)
-    print("K² Vob — API Key Test Suite")
+    print("Jovio — API Key Test Suite")
     print("=" * 50)
 
     results = {}

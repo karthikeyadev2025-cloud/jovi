@@ -646,7 +646,7 @@ app.get("/api/admin/audit-log", verifySuperAdmin, async (req, res) => {
 // HEALTH
 // ════════════════════════════════════════════════
 app.get("/health", (_, res) => res.json({
-  status: "ok", service: "k2vob-api-server",
+  status: "ok", service: "jovio-api-server",
   timestamp: new Date().toISOString(),
 }));
 
@@ -664,15 +664,15 @@ async function sendEmail(tenantId: string, template: string, data: Record<string
 
   const templates: Record<string, { subject: string; html: string }> = {
     payment_success: {
-      subject: "Payment Successful — K² Vob",
+      subject: "Payment Successful — Jovio",
       html: `<p>Your payment of ₹${data.amount} was successful. Your plan is now active.</p>`,
     },
     payment_failed: {
       subject: "Payment Failed — Action Required",
-      html: `<p>Your K² Vob payment failed. Please update your payment method within 3 days to keep your service active.</p>`,
+      html: `<p>Your Jovio payment failed. Please update your payment method within 3 days to keep your service active.</p>`,
     },
     trial_expiry: {
-      subject: `Your K² Vob trial expires in ${data.days} days`,
+      subject: `Your Jovio trial expires in ${data.days} days`,
       html: `<p>Hi ${tenant.name}, your free trial ends in ${data.days} days. Upgrade now to keep your Telugu AI receptionist active.</p>`,
     },
   };
@@ -687,7 +687,7 @@ async function sendEmail(tenantId: string, template: string, data: Record<string
       "Content-Type":  "application/json",
     },
     body: JSON.stringify({
-      from:    `K² Vob <noreply@${process.env.FROM_EMAIL || "k2vob.in"}>`,
+      from:    `Jovio <noreply@${process.env.FROM_EMAIL || "jovio.in"}>`,
       to:      [user.email],
       subject: t.subject,
       html:    t.html,
@@ -696,7 +696,7 @@ async function sendEmail(tenantId: string, template: string, data: Record<string
 }
 
 app.listen(PORT, () => {
-  console.log(`K² Vob API Server running on port ${PORT}`);
+  console.log(`Jovio API Server running on port ${PORT}`);
 });
 
 export default app;

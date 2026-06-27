@@ -1,5 +1,5 @@
 // super-admin/app/page.tsx
-// Deploy to: admin.k2vob.in (separate Vercel project)
+// Deploy to: admin.jovio.in (separate Vercel project)
 // Access: super_admin role only
 "use client";
 import { useState, useEffect, useCallback } from "react";
@@ -93,7 +93,7 @@ export default function SuperAdminPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.red,
               boxShadow: "0 0 8px " + C.red }} />
-            <span style={{ fontSize: 14, fontWeight: 900 }}>K² Vob — Super Admin</span>
+            <span style={{ fontSize: 14, fontWeight: 900 }}>Jovio — Super Admin</span>
             <Pill label="RESTRICTED ACCESS" color={C.red} />
           </div>
           <button onClick={() => sb.auth.signOut().then(() => window.location.reload())}
@@ -160,7 +160,7 @@ function AdminLogin({ onSuccess }: { onSuccess: (token: string) => void }) {
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: 14 }}>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="admin@k2vob.in" required
+              placeholder="admin@jovio.in" required
               style={{ background: C.hi, border: "1px solid " + C.bord, color: C.txt,
                 borderRadius: 8, padding: "10px 12px", width: "100%", fontSize: 14 }} />
           </div>

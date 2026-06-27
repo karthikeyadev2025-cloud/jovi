@@ -21,7 +21,7 @@ import 'providers/auth_provider.dart';
 // ── CONSTANTS ─────────────────────────────────────────────
 const kSupabaseUrl  = String.fromEnvironment('SUPABASE_URL',  defaultValue: 'https://YOUR.supabase.co');
 const kSupabaseAnon = String.fromEnvironment('SUPABASE_ANON', defaultValue: 'your_anon_key');
-const kApiUrl       = String.fromEnvironment('API_URL',       defaultValue: 'https://api.k2vob.in');
+const kApiUrl       = String.fromEnvironment('API_URL',       defaultValue: 'https://api.jovio.in');
 
 // ── ROUTER ────────────────────────────────────────────────
 final routerProvider = Provider<GoRouter>((ref) {
@@ -97,7 +97,7 @@ class K2VobApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'K² Vob',
+      title: 'Jovio',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3:    true,

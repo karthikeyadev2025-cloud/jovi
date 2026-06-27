@@ -12,10 +12,10 @@ const C = {
 };
 
 const PROFILE_SKUS = [
-  { id: "standard",    name: "K² Telugu Receptionist — Standard",    desc: "General business, retail, coaching", icon: "🏢" },
-  { id: "clinic",      name: "K² Telugu Receptionist — Clinic",      desc: "Hospitals, clinics, diagnostic labs", icon: "🏥" },
-  { id: "real_estate", name: "K² Telugu Receptionist — Real Estate", desc: "Site visits, lead capture, property enquiries", icon: "🏗️" },
-  { id: "premium",     name: "K² Telugu Receptionist — Premium",     desc: "High-value clients, luxury brands", icon: "⭐" },
+  { id: "standard",    name: "Jovio Telugu Receptionist — Standard",    desc: "General business, retail, coaching", icon: "🏢" },
+  { id: "clinic",      name: "Jovio Telugu Receptionist — Clinic",      desc: "Hospitals, clinics, diagnostic labs", icon: "🏥" },
+  { id: "real_estate", name: "Jovio Telugu Receptionist — Real Estate", desc: "Site visits, lead capture, property enquiries", icon: "🏗️" },
+  { id: "premium",     name: "Jovio Telugu Receptionist — Premium",     desc: "High-value clients, luxury brands", icon: "⭐" },
 ];
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];

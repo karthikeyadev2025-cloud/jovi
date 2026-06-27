@@ -62,7 +62,7 @@ export default function SignupPage() {
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.glow,
               boxShadow: "0 0 10px " + C.glow }} />
-            <span style={{ fontSize: 22, fontWeight: 900, color: C.txt }}>K² Vob</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: C.txt }}>Jovio</span>
           </div>
           <div style={{ color: C.mid, fontSize: 13 }}>
             14-day free trial · No credit card

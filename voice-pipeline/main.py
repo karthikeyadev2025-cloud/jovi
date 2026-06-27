@@ -1,5 +1,5 @@
 """
-K² Vob — Telugu Voice Pipeline
+Jovio — Telugu Voice Pipeline
 FastAPI + LiveKit Agents + Sarvam STT/TTS + Gemini LLM
 Run: uvicorn main:app --host 0.0.0.0 --port 8000
 """
@@ -29,13 +29,13 @@ SARVAM_KEY     = os.environ["SARVAM_API_KEY"]
 GEMINI_KEY     = os.environ["GEMINI_API_KEY"]
 SUPABASE_URL   = os.environ["SUPABASE_URL"]
 SUPABASE_KEY   = os.environ["SUPABASE_SERVICE_KEY"]
-INTERNAL_SECRET= os.environ.get("INTERNAL_SECRET", "k2vob-internal-secret-change-me")
+INTERNAL_SECRET= os.environ.get("INTERNAL_SECRET", "jovio-internal-secret-change-me")
 
 logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("k2vob")
+log = logging.getLogger("jovio")
 
 # ── FASTAPI APP ──────────────────────────────────────────
-app = FastAPI(title="K² Vob Voice Pipeline")
+app = FastAPI(title="Jovio Voice Pipeline")
 
 app.add_middleware(
     CORSMiddleware,
@@ -617,7 +617,7 @@ class SpeechRequest(BaseModel):
 async def health():
     return {
         "status": "ok",
-        "service": "k2vob-voice-pipeline",
+        "service": "jovio-voice-pipeline",
         "timestamp": datetime.now().isoformat()
     }
 
