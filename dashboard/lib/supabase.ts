@@ -1,29 +1,16 @@
 // lib/supabase.ts
 import { createBrowserClient } from "@supabase/ssr";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 
-const URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// ── Browser client (use in Client Components) ─────────
+// Single browser client - used everywhere in client components
 export function createClient() {
-  return createBrowserClient(URL, ANON);
+  return createBrowserClient(SUPABASE_URL, SUPABASE_ANON);
 }
 
-// ── Server client (use in Server Components / Route Handlers) ─
-export async function createServerSupabase() {
-  const cookieStore = await cookies();
-  return createServerClient(URL, ANON, {
-    cookies: {
-      getAll() { return cookieStore.getAll(); },
-      setAll(toSet) {
-        try { toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); }
-        catch {}
-      },
-    },
-  });
-}
+// Alias for compatibility
+export const createServerSupabase = createClient;
 
 // ── Types ─────────────────────────────────────────────
 export type CallRecord = {
