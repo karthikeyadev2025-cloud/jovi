@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
     acc[k] = (acc[k] || 0) + 1;
     return acc;
   }, {});
-  const intentData = Object.entries(intentCounts).map(([name, value]) => ({ name, value }));
+  const intentData: Array<{ name: string; value: number }> = Object.entries(intentCounts).map(([name, value]) => ({ name, value: value as number }));
 
   // Peak hours heatmap
   const hourCounts = Array.from({ length: 24 }, (_, h) => ({
