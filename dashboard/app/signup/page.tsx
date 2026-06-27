@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "../../lib/supabase";
+import JovioLogo from "../../components/JovioLogo";
 
 const J = {
   bg: "#070B19", vault: "#111827", surface: "#1A2235",
@@ -50,9 +50,10 @@ export default function SignupPage() {
           background: J.vault, border: `1px solid ${J.border}`,
           borderRadius: 16, padding: 40, maxWidth: 420, textAlign: "center",
         }}>
-          <Image src="/jovio-logo.jpeg" alt="Jovio" width={64} height={64}
-            style={{ borderRadius: 12, objectFit: "cover", marginBottom: 16 }} />
-          <div style={{ fontSize: 56, marginBottom: 16 }}>📧</div>
+          <div style={{ marginBottom: 20, display: "inline-block" }}>
+            <JovioLogo size={64} variant="icon" />
+          </div>
+          <div style={{ fontSize: 52, marginBottom: 16 }}>📧</div>
           <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 8, color: J.chandra }}>
             Check your email
           </h2>
@@ -79,10 +80,9 @@ export default function SignupPage() {
       <div style={{ width: "100%", maxWidth: 420 }}>
 
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <Image
-            src="/jovio-logo.jpeg" alt="Jovio" width={88} height={88}
-            priority style={{ borderRadius: 16, objectFit: "cover", marginBottom: 16 }}
-          />
+          <div style={{ marginBottom: 20, display: "inline-block" }}>
+            <JovioLogo size={84} variant="stacked" />
+          </div>
           <h1 style={{
             fontSize: 22, fontWeight: 800, color: J.chandra,
             margin: "0 0 6px", letterSpacing: -0.5,

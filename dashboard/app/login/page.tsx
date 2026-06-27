@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "../../lib/supabase";
+import JovioLogo from "../../components/JovioLogo";
 
 const J = {
   bg: "#070B19", vault: "#111827", surface: "#1A2235",
@@ -42,17 +42,12 @@ export default function LoginPage() {
       <div style={{ width: "100%", maxWidth: 420 }}>
 
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <Image
-            src="/jovio-logo.jpeg"
-            alt="Jovio"
-            width={88}
-            height={88}
-            priority
-            style={{ borderRadius: 16, objectFit: "cover", marginBottom: 16 }}
-          />
+          <div style={{ marginBottom: 20, display: "inline-block" }}>
+            <JovioLogo size={84} variant="stacked" />
+          </div>
           <h1 style={{
-            fontSize: 22, fontWeight: 800,
-            color: J.chandra, margin: "0 0 6px", letterSpacing: -0.5,
+            fontSize: 22, fontWeight: 800, color: J.chandra,
+            margin: "0 0 6px", letterSpacing: -0.5,
           }}>Welcome back</h1>
           <div style={{ color: J.textMid, fontSize: 14 }}>
             Sign in to your Jovio account

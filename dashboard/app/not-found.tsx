@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
+import JovioLogo from "@/components/JovioLogo";
 
 export default function NotFound() {
   return (
@@ -9,8 +9,9 @@ export default function NotFound() {
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
       <div style={{ textAlign: "center", maxWidth: 480 }}>
-        <Image src="/jovio-logo.jpeg" alt="Jovio" width={80} height={80}
-          priority style={{ borderRadius: 16, objectFit: "cover", marginBottom: 24 }} />
+        <div style={{ marginBottom: 24, display: "inline-block" }}>
+          <JovioLogo size={80} variant="icon" />
+        </div>
         <h1 style={{ fontSize: 48, fontWeight: 900, margin: "0 0 12px", color: "#F8FAFC" }}>404</h1>
         <p style={{ color: "#9CA3AF", fontSize: 16, marginBottom: 32 }}>
           This page doesn't exist on Jovio.

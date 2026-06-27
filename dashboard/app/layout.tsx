@@ -4,10 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Jovio Dashboard — Telugu AI Receptionist",
   description: "Manage your Jovio voice profiles, view live calls, appointments, and analytics.",
-  icons: {
-    icon: "/jovio-logo.jpeg",
-    apple: "/jovio-logo.jpeg",
-  },
 };
 
 export const viewport: Viewport = {

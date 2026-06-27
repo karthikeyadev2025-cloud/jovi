@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import JovioLogo from "../components/JovioLogo";
 
 const J = {
   bg: "#070B19",
@@ -17,31 +18,7 @@ const J = {
 };
 
 function Logo({ size = 40, showText = true }: { size?: number; showText?: boolean }) {
-  return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-      <Image
-        src="/jovio-logo.jpeg"
-        alt="Jovio"
-        width={size}
-        height={size}
-        priority
-        style={{ borderRadius: size * 0.18, objectFit: "cover", flexShrink: 0 }}
-      />
-      {showText && (
-        <div style={{ lineHeight: 1.1 }}>
-          <div style={{
-            fontSize: size * 0.5, fontWeight: 900,
-            background: J.grad, WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent", letterSpacing: -0.5,
-          }}>Jovio</div>
-          <div style={{
-            fontSize: size * 0.18, color: J.textMid,
-            letterSpacing: 1.5, fontWeight: 600, marginTop: 2,
-          }}>GLOBAL TECHNOLOGIES</div>
-        </div>
-      )}
-    </div>
-  );
+  return <JovioLogo size={size} showText={showText} variant="horizontal" />;
 }
 
 function Button({ children, primary, href }: { children: React.ReactNode; primary?: boolean; href: string }) {
