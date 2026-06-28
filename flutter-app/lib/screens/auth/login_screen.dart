@@ -72,7 +72,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_outline, color: JovioColors.dim))),
               const SizedBox(height: 24),
               JovioButton(label: 'Sign In', onTap: _login, loading: _loading),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              Center(
+                child: GestureDetector(
+                  onTap: () => context.go('/forgot-password'),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Forgot password?',
+                      style: TextStyle(color: JovioColors.mid, fontSize: 12, decoration: TextDecoration.underline),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               Row(children: const [
                 Expanded(child: Divider(color: JovioColors.border)),
                 Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('or', style: TextStyle(color: JovioColors.dim, fontSize: 12))),

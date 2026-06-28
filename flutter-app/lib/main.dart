@@ -8,10 +8,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'theme.dart';
 import 'providers/auth_provider.dart';
+import 'services/fcm_service.dart';
 import 'widgets/jovio_widgets.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
+import 'screens/auth/forgot_password_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/calls/calls_screen.dart';
 import 'screens/analytics/analytics_screen.dart';
@@ -23,22 +25,29 @@ const kSupabaseUrl  = String.fromEnvironment('SUPABASE_URL',  defaultValue: 'htt
 const kSupabaseAnon = String.fromEnvironment('SUPABASE_ANON', defaultValue: 'YOUR_ANON_KEY');
 const kApiUrl       = String.fromEnvironment('API_URL',       defaultValue: 'https://api.jovio.in');
 
+/// Navigator key — used by FcmService to route on push tap from any
+/// context (incl. background isolate handoff to UI).
+final navigatorKey = GlobalKey<NavigatorState>();
+
 // ── ROUTER ────────────────────────────────────────────────
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
   return GoRouter(
+    navigatorKey: navigatorKey,
     initialLocation: '/onboarding',
     redirect: (context, state) {
       final isAuthed   = authState.valueOrNull != null;
-      final isAuthPage = ['/login', '/signup', '/onboarding'].contains(state.matchedLocation);
+      final isAuthPage = ['/login', '/signup', '/onboarding', '/forgot-password']
+          .contains(state.matchedLocation);
       if (!isAuthed && !isAuthPage) return '/login';
-      if (isAuthed && isAuthPage)   return '/home';
+      if (isAuthed && isAuthPage && state.matchedLocation != '/forgot-password') return '/home';
       return null;
     },
     routes: [
-      GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
-      GoRoute(path: '/login',      builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/signup',     builder: (_, __) => const SignupScreen()),
+      GoRoute(path: '/onboarding',      builder: (_, __) => const OnboardingScreen()),
+      GoRoute(path: '/login',           builder: (_, __) => const LoginScreen()),
+      GoRoute(path: '/signup',          builder: (_, __) => const SignupScreen()),
+      GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
       ShellRoute(
         builder: (ctx, state, child) => JovioShell(child: child, location: state.matchedLocation),
         routes: [
@@ -63,8 +72,11 @@ void main() async {
   await Supabase.initialize(url: kSupabaseUrl, anonKey: kSupabaseAnon);
   try {
     await Firebase.initializeApp();
-    await FirebaseMessaging.instance.requestPermission();
-  } catch (_) {}
+    await FcmService.instance.init(navigatorKey: navigatorKey);
+  } catch (e) {
+    // Firebase may not be configured in dev — keep app usable
+    debugPrint('Firebase/FCM init skipped: $e');
+  }
   runApp(const ProviderScope(child: JovioApp()));
 }
 
