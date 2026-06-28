@@ -8,9 +8,21 @@ import os
 import json
 import asyncio
 import logging
+import pathlib
+import base64
+import secrets
 import httpx
 from datetime import datetime
 from typing import Optional
+
+# AES-256-GCM for call recording encryption at rest.
+# Lazy import — pipeline still boots if cryptography not installed yet
+# (CI/lint environments), only fails when actually encrypting a recording.
+try:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    _HAS_CRYPTO = True
+except ImportError:
+    _HAS_CRYPTO = False
 
 from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -423,6 +435,30 @@ class SupabaseClient:
         except Exception as e:
             log.error(f"Supabase wa_log: {e}")
 
+    async def upload_recording(self, path: str, blob: bytes):
+        """Upload encrypted recording bytes to Supabase storage bucket.
+
+        Bucket name is configurable via SUPABASE_RECORDINGS_BUCKET (defaults
+        to 'recordings'). Bucket should be created as PRIVATE — recordings
+        are AES-256-GCM encrypted but defense-in-depth applies.
+        """
+        bucket = os.environ.get("SUPABASE_RECORDINGS_BUCKET", "recordings")
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{self.url}/storage/v1/object/{bucket}/{path}",
+                    headers={
+                        **self.headers,
+                        "Content-Type":  "application/octet-stream",
+                        "x-upsert":      "true",
+                    },
+                    content=blob,
+                )
+                if resp.status_code >= 300:
+                    log.error(f"Supabase upload {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            log.error(f"Supabase upload_recording: {e}")
+
 
 # ── WHATSAPP ─────────────────────────────────────────────
 async def send_whatsapp(to: str, message: str, wa_number: str, tenant_id: str):
@@ -474,7 +510,13 @@ class JovioAgent:
         self.voice = sku_voices.get(profile.get("profile_sku","standard"), "meera")
 
     async def on_call_start(self) -> bytes:
-        """Called when call connects. Play TRAI disclosure first."""
+        """Called when call connects. Play TRAI disclosure first.
+
+        Loads pre-recorded disclosure WAV if available (saves ~500ms +
+        Sarvam credits per call). Falls back to runtime TTS synthesis if
+        the WAV is missing (dev environments, or before
+        generate_trai_disclosure.py has been run).
+        """
         self.call_id = await self.db.save_call({
             "tenant_id":        self.profile["tenant_id"],
             "voice_profile_id": self.profile["id"],
@@ -483,9 +525,19 @@ class JovioAgent:
             "status":           "active",
         })
         log.info(f"Call started: {self.call_id} from {self.caller_num}")
-        # TRAI mandatory disclosure — non-skippable
-        audio = await self.tts.synthesize(self.TRAI_DISCLOSURE, self.voice)
-        return audio
+
+        # TRAI mandatory disclosure — non-skippable. Prefer pre-recorded.
+        assets_dir = pathlib.Path(__file__).resolve().parent / "assets"
+        wav_path   = assets_dir / f"trai_disclosure_{self.voice}.wav"
+        if wav_path.exists():
+            log.info(f"TRAI disclosure: loading pre-recorded {wav_path.name}")
+            return wav_path.read_bytes()
+
+        log.warning(
+            f"TRAI WAV not found at {wav_path} — falling back to runtime TTS. "
+            f"Run voice-pipeline/scripts/generate_trai_disclosure.py to pre-gen."
+        )
+        return await self.tts.synthesize(self.TRAI_DISCLOSURE, self.voice)
 
     async def on_speech(self, audio_bytes: bytes) -> bytes:
         """Process one turn: STT → detect intent → LLM → TTS."""
@@ -523,15 +575,72 @@ class JovioAgent:
             log.error(f"on_speech error: {e}")
             return await self.tts.synthesize("క్షమించండి, technical issue. మళ్ళీ try చేయండి.", self.voice)
 
-    async def on_call_end(self, duration_seconds: int):
-        """Save full transcript, update call record."""
+    async def save_recording(self, raw_audio_bytes: bytes) -> Optional[str]:
+        """Encrypt call recording with AES-256-GCM and upload to Supabase storage.
+
+        Layout of stored object (binary):
+            [ 12-byte nonce ][ ciphertext + GCM tag ]
+
+        Decryption key is per-tenant, sourced from env JOVIO_RECORDING_KEY_<TENANT>
+        or a single fallback JOVIO_RECORDING_KEY. Key must be 32 bytes base64-encoded.
+
+        Returns the Supabase storage path or None on failure (never blocks call cleanup).
+        """
+        if not raw_audio_bytes:
+            return None
+        if not _HAS_CRYPTO:
+            log.error("cryptography library not installed; skipping recording encryption")
+            return None
+
+        tenant_id = self.profile.get("tenant_id", "unknown")
+        key_b64 = (
+            os.getenv(f"JOVIO_RECORDING_KEY_{tenant_id}")
+            or os.getenv("JOVIO_RECORDING_KEY")
+        )
+        if not key_b64:
+            log.error("JOVIO_RECORDING_KEY env not set; skipping recording")
+            return None
+
         try:
-            await self.db.update_call(self.call_id, {
+            key = base64.b64decode(key_b64)
+            if len(key) != 32:
+                log.error(f"Recording key must decode to 32 bytes, got {len(key)}")
+                return None
+
+            nonce = secrets.token_bytes(12)
+            aesgcm = AESGCM(key)
+            ciphertext = aesgcm.encrypt(nonce, raw_audio_bytes, associated_data=self.call_id.encode())
+
+            blob = nonce + ciphertext
+            path = f"recordings/{tenant_id}/{self.call_id}.wav.enc"
+
+            await self.db.upload_recording(path, blob)
+            log.info(
+                f"Recording encrypted+uploaded: {path} "
+                f"({len(raw_audio_bytes):,}B → {len(blob):,}B ciphertext)"
+            )
+            return path
+        except Exception as e:
+            log.error(f"save_recording failed: {e}")
+            return None
+
+    async def on_call_end(self, duration_seconds: int, recording_bytes: Optional[bytes] = None):
+        """Save full transcript, update call record, encrypt+store recording."""
+        try:
+            recording_path = None
+            if recording_bytes:
+                recording_path = await self.save_recording(recording_bytes)
+
+            update = {
                 "status":           "completed",
                 "duration_seconds": duration_seconds,
                 "transcript":       self.transcript,
                 "intent":           self.intent,
-            })
+            }
+            if recording_path:
+                update["recording_path"] = recording_path
+
+            await self.db.update_call(self.call_id, update)
             log.info(f"Call ended: {self.call_id}, duration: {duration_seconds}s")
         except Exception as e:
             log.error(f"on_call_end error: {e}")
