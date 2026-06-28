@@ -1,6 +1,6 @@
 // app/setup/page.tsx — Voice Profile Setup
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Shell from "../../components/Shell";
 import { createClient } from "../../lib/supabase";
 import type { VoiceProfile } from "../../lib/supabase";
@@ -12,11 +12,20 @@ const C = {
 };
 
 const PROFILE_SKUS = [
-  { id: "standard",    name: "Jovio Telugu Receptionist — Standard",    desc: "General business, retail, coaching", icon: "🏢" },
-  { id: "clinic",      name: "Jovio Telugu Receptionist — Clinic",      desc: "Hospitals, clinics, diagnostic labs", icon: "🏥" },
-  { id: "real_estate", name: "Jovio Telugu Receptionist — Real Estate", desc: "Site visits, lead capture, property enquiries", icon: "🏗️" },
-  { id: "premium",     name: "Jovio Telugu Receptionist — Premium",     desc: "High-value clients, luxury brands", icon: "⭐" },
+  { id: "standard",    name: "Jovio Telugu Receptionist — Standard",    desc: "General business, retail, coaching",        icon: "🏢", voice: "meera"    },
+  { id: "clinic",      name: "Jovio Telugu Receptionist — Clinic",      desc: "Hospitals, clinics, diagnostic labs",       icon: "🏥", voice: "pavithra" },
+  { id: "real_estate", name: "Jovio Telugu Receptionist — Real Estate", desc: "Site visits, lead capture, property enquiries", icon: "🏗️", voice: "arvind"   },
+  { id: "premium",     name: "Jovio Telugu Receptionist — Premium",     desc: "High-value clients, luxury brands",         icon: "⭐", voice: "meera"    },
 ];
+
+// Voice sample URLs — public Supabase Storage bucket `voice-samples` serves
+// short 5-second clips. Filenames match `voice` field above. If a sample is
+// missing the button shows a tooltip and disables playback.
+function sampleUrl(voice: string): string | null {
+  const base = process.env.NEXT_PUBLIC_VOICE_SAMPLE_BASE_URL;
+  if (!base) return null;
+  return `${base.replace(/\/$/, "")}/${voice}.mp3`;
+}
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
@@ -39,6 +48,30 @@ export default function SetupPage() {
   const [saved, setSaved]             = useState(false);
   const [testCalling, setTestCalling] = useState(false);
   const [error, setError]             = useState("");
+
+  // Voice preview audio — single shared <audio> element. Tracks which SKU
+  // is currently playing so the button shows pause/play accurately.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playingSku, setPlayingSku] = useState<string | null>(null);
+
+  const togglePreview = (sku: { id: string; voice: string }) => {
+    const url = sampleUrl(sku.voice);
+    if (!url) return;
+
+    if (playingSku === sku.id) {
+      audioRef.current?.pause();
+      setPlayingSku(null);
+      return;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = url;
+      audioRef.current.play()
+        .then(() => setPlayingSku(sku.id))
+        .catch(() => setPlayingSku(null));   // 404 / blocked autoplay etc.
+    }
+  };
 
   const [form, setForm] = useState({
     profile_sku:        "standard",
@@ -148,20 +181,52 @@ export default function SetupPage() {
             Voice Profile
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {PROFILE_SKUS.map(sku => (
-              <div key={sku.id} onClick={() => setForm(f => ({ ...f, profile_sku: sku.id }))}
-                style={{
-                  padding: 14, borderRadius: 8, cursor: "pointer",
-                  background: form.profile_sku === sku.id ? C.glow + "22" : C.hi,
-                  border: "1px solid " + (form.profile_sku === sku.id ? C.glow : C.bord),
-                  transition: "all 0.15s",
-                }}>
-                <div style={{ fontSize: 20, marginBottom: 6 }}>{sku.icon}</div>
-                <div style={{ color: C.txt, fontSize: 12, fontWeight: 700 }}>{sku.name}</div>
-                <div style={{ color: C.dim, fontSize: 11, marginTop: 3 }}>{sku.desc}</div>
-              </div>
-            ))}
+            {PROFILE_SKUS.map(sku => {
+              const isSelected = form.profile_sku === sku.id;
+              const isPlaying  = playingSku === sku.id;
+              const hasSample  = !!sampleUrl(sku.voice);
+              return (
+                <div key={sku.id} onClick={() => setForm(f => ({ ...f, profile_sku: sku.id }))}
+                  style={{
+                    padding: 14, borderRadius: 8, cursor: "pointer", position: "relative",
+                    background: isSelected ? C.glow + "22" : C.hi,
+                    border: "1px solid " + (isSelected ? C.glow : C.bord),
+                    transition: "all 0.15s",
+                  }}>
+                  <div style={{ fontSize: 20, marginBottom: 6 }}>{sku.icon}</div>
+                  <div style={{ color: C.txt, fontSize: 12, fontWeight: 700 }}>{sku.name}</div>
+                  <div style={{ color: C.dim, fontSize: 11, marginTop: 3 }}>{sku.desc}</div>
+
+                  {/* Voice preview button (stops click from also picking the card) */}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); togglePreview(sku); }}
+                    disabled={!hasSample}
+                    title={hasSample ? "Preview voice sample" : "Sample not available yet"}
+                    style={{
+                      position: "absolute", top: 10, right: 10,
+                      width: 30, height: 30, borderRadius: "50%",
+                      background: isPlaying ? C.glow : C.bord,
+                      color: isPlaying ? "#fff" : C.txt,
+                      border: "none", display: "flex", alignItems: "center",
+                      justifyContent: "center", fontSize: 12,
+                      cursor: hasSample ? "pointer" : "not-allowed",
+                      opacity: hasSample ? 1 : 0.4,
+                    }}>
+                    {isPlaying ? "❚❚" : "▶"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
+
+          {/* Shared audio element used by all preview buttons */}
+          <audio
+            ref={audioRef}
+            onEnded={() => setPlayingSku(null)}
+            onError={() => setPlayingSku(null)}
+            preload="none"
+          />
         </Card>
 
         {/* Business details */}
