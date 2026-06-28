@@ -90,9 +90,18 @@ export default function LoginPage() {
               style={{
                 width: "100%", padding: "12px 14px", fontSize: 14,
                 background: J.surface, border: `1px solid ${J.border}`, borderRadius: 10,
-                color: J.chandra, marginBottom: 20, outline: "none",
+                color: J.chandra, marginBottom: 8, outline: "none",
               }}
             />
+
+            <div style={{ textAlign: "right", marginBottom: 16 }}>
+              <Link
+                href="/forgot-password"
+                style={{ color: J.textMid, fontSize: 12, textDecoration: "none" }}
+              >
+                Forgot password?
+              </Link>
+            </div>
 
             <button type="submit" disabled={loading} style={{
               width: "100%", padding: "13px", fontSize: 15, fontWeight: 700,
