@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  # ─── Node apps: dashboard, web, super-admin, api-server ───
+  node:
+    name: Build ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [dashboard, web, super-admin, api-server]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+
+      - name: Install
+        working-directory: ${{ matrix.app }}
+        run: npm install --no-audit --no-fund
+
+      - name: Build
+        working-directory: ${{ matrix.app }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL:      "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder"
+          NEXT_PUBLIC_API_URL:           "https://placeholder"
+        run: npm run build
+
+  # ─── Python voice pipeline: syntax + import check ───
+  python:
+    name: Voice pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: voice-pipeline/requirements.txt
+
+      - name: Install deps
+        working-directory: voice-pipeline
+        run: pip install -r requirements.txt
+
+      - name: Syntax check
+        working-directory: voice-pipeline
+        run: python -m compileall -q main.py gemini_client.py scripts/
+
+      - name: Import check (no API keys needed)
+        working-directory: voice-pipeline
+        env:
+          SUPABASE_URL:    "https://placeholder.supabase.co"
+          SUPABASE_KEY:    "placeholder"
+          SARVAM_API_KEY:  "placeholder"
+          GEMINI_API_KEY:  "placeholder"
+          LIVEKIT_URL:     "wss://placeholder"
+          LIVEKIT_API_KEY: "placeholder"
+          LIVEKIT_API_SECRET: "placeholder"
+        run: python -c "import main; print('OK: main.py imports cleanly')"
+
+  # ─── Quick secret scan ───
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if .env committed
+        run: |
+          if find . -name ".env" -not -path "./node_modules/*" | grep -q .; then
+            echo "::error::Found committed .env file(s)"
+            find . -name ".env" -not -path "./node_modules/*"
+            exit 1
+          fi
+      - name: Fail on obvious secret patterns
+        run: |
+          if grep -rIE "(sk_live_|rzp_live_[a-zA-Z0-9]{14}|AIza[0-9A-Za-z_-]{35})" \
+               --include="*.ts" --include="*.tsx" --include="*.py" --include="*.js" \
+               --exclude-dir=node_modules --exclude-dir=.next .; then
+            echo "::error::Live secret pattern detected in source"
+            exit 1
+          fi
