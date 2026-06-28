@@ -109,29 +109,49 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const sb = createClient();
+    let cleanupChannels: (() => void) | null = null;
+
     sb.auth.getUser().then(async ({ data }) => {
       if (!data.user) { window.location.href = "/login"; return; }
       const { data: tu } = await sb.from("tenant_users")
         .select("tenant_id").eq("user_id", data.user.id).single();
-      if (tu) {
-        setTenantId(tu.tenant_id);
-        await fetchData(tu.tenant_id);
+      if (!tu) return;
 
-        // Real-time subscription for active calls
-        sb.channel("calls-live")
-          .on("postgres_changes", {
-            event: "*", schema: "public", table: "calls",
-            filter: `tenant_id=eq.${tu.tenant_id}`,
-          }, () => fetchData(tu.tenant_id))
-          .subscribe();
-      }
+      setTenantId(tu.tenant_id);
+      await fetchData(tu.tenant_id);
+
+      // Realtime: subscribe to BOTH calls and appointments for this tenant.
+      // Any insert/update/delete refreshes the view. Postgres-changes are
+      // filtered server-side so we only get rows for this tenant.
+      const callsChannel = sb.channel(`calls-live-${tu.tenant_id}`)
+        .on("postgres_changes",
+          { event: "*", schema: "public", table: "calls",
+            filter: `tenant_id=eq.${tu.tenant_id}` },
+          () => fetchData(tu.tenant_id))
+        .subscribe();
+
+      const apptsChannel = sb.channel(`appts-live-${tu.tenant_id}`)
+        .on("postgres_changes",
+          { event: "*", schema: "public", table: "appointments",
+            filter: `tenant_id=eq.${tu.tenant_id}` },
+          () => fetchData(tu.tenant_id))
+        .subscribe();
+
+      cleanupChannels = () => {
+        sb.removeChannel(callsChannel);
+        sb.removeChannel(apptsChannel);
+      };
     });
+
+    return () => { if (cleanupChannels) cleanupChannels(); };
   }, [fetchData]);
 
-  // Polling every 5s for active calls
+  // Safety-net polling — only fires if realtime drops (every 30s, not 5s).
+  // Realtime should handle nearly all updates; this just catches edge cases
+  // like the websocket reconnecting after a sleep.
   useEffect(() => {
     if (!tenantId) return;
-    const t = setInterval(() => fetchData(tenantId), 5000);
+    const t = setInterval(() => fetchData(tenantId), 30000);
     return () => clearInterval(t);
   }, [tenantId, fetchData]);
 
