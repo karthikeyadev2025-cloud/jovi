@@ -6,6 +6,7 @@
 import express from "express";
 import cors from "cors";
 import crypto from "crypto";
+import rateLimit from "express-rate-limit";
 import { createClient } from "@supabase/supabase-js";
 
 const app  = express();
@@ -27,6 +28,28 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── MIDDLEWARE ────────────────────────────────────────────
 app.use(cors({ origin: "*" }));
+
+// Trust the first proxy hop — required for accurate req.ip behind Railway / Vercel.
+// Without this, rate-limit uses Railway's edge IP and 1 attacker can DoS everyone.
+app.set("trust proxy", 1);
+
+// ── RATE LIMITING ─────────────────────────────────────────
+// Three tiers, applied where they make sense:
+//
+//   tightLimiter  — auth-sensitive paths (signup verification, magic-link, etc).
+//                   30 req / 15 min / IP. Stops credential-stuffing.
+//   webhookLimiter — burst protection on webhook endpoints. Razorpay legit
+//                   bursts occasionally; Exotel may retry. Generous but bounded.
+//   apiLimiter    — generic protection for everything else. 300 req / 15 min / IP.
+const tightLimiter   = rateLimit({ windowMs: 15 * 60 * 1000, max:  30, standardHeaders: true, legacyHeaders: false });
+const webhookLimiter = rateLimit({ windowMs:      60 * 1000, max:  60, standardHeaders: true, legacyHeaders: false });
+const apiLimiter     = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
+
+// Apply webhook limiter ONLY to webhook paths (HMAC + token verification
+// already filter junk, but burst-cap protects against billing surprises).
+app.use("/webhooks", webhookLimiter);
+// Apply generic limiter to API paths.
+app.use("/api",      apiLimiter);
 
 // Raw body for webhook HMAC verification
 app.use((req, res, next) => {
