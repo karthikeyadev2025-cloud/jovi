@@ -820,3 +820,12 @@ async def handle_call_end(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+
+# ─── Exotel WebSocket bridge ──────────────────────────────
+from app.exotel.bridge import handle_exotel_ws
+from fastapi import WebSocket as _WebSocket
+
+@app.websocket("/ws/exotel")
+async def exotel_ws(ws: _WebSocket):
+    await handle_exotel_ws(ws)
