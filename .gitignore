@@ -52,3 +52,7 @@ flutter-app/android/*.keystore
 # SSH keys - NEVER commit
 *.pem
 *.key
+
+# SSH keys - NEVER commit
+*.pem
+*.key
