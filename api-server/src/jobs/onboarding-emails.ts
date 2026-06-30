@@ -126,7 +126,7 @@ async function sendEmail(to: string, subject: string, body: string): Promise<str
     console.error(`[onboarding] Resend ${r.status}:`, await r.text());
     return null;
   }
-  const j = await r.json();
+  const j = await r.json() as { id?: string };
   return j.id || null;
 }
 
