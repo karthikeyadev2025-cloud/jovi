@@ -48,3 +48,11 @@ test_tts_output.wav
 flutter-app/android/key.properties
 flutter-app/android/*.jks
 flutter-app/android/*.keystore
+
+# SSH keys - NEVER commit
+*.pem
+*.key
+
+# SSH keys - NEVER commit
+*.pem
+*.key
