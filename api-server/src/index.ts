@@ -205,7 +205,7 @@ app.post("/webhooks/exotel/inbound/:token", async (req, res) => {
 </Response>`);
     }
 
-    const data = await resp.json();
+    const data = await resp.json() as { call_id: string };
     // Exotel expects XML response to route the call
     res.set("Content-Type", "text/xml");
     res.send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -489,7 +489,7 @@ app.post("/api/billing/create-subscription", verifyJWT, async (req, res) => {
         notes: { tenant_id: tenantId, plan_id, annual: annual ? "true" : "false" },
       }),
     });
-    const order = await resp.json();
+    const order = await resp.json() as { id: string; amount: number };
     res.json({
       order_id:  order.id,
       amount:    order.amount,

@@ -44,7 +44,7 @@ async function scrubDnd(phone: string): Promise<{ blocked: boolean; reason?: str
       headers: { Authorization: `Bearer ${process.env.DND_SCRUB_PROVIDER_TOKEN || ""}` },
     });
     if (!r.ok) return { blocked: true, reason: "scrub_provider_error" };
-    const j = await r.json();
+    const j = await r.json() as { on_dnd?: boolean; reason?: string };
     return { blocked: !!j.on_dnd, reason: j.reason };
   } catch (e) {
     console.error("[dispatcher] scrub error:", e);
@@ -78,7 +78,7 @@ async function dispatchCall(recipient: any, campaign: any): Promise<string | nul
       console.error(`[dispatcher] pipeline ${r.status}:`, await r.text());
       return null;
     }
-    const j = await r.json();
+    const j = await r.json() as { call_id?: string };
     return j.call_id || null;
   } catch (e) {
     console.error("[dispatcher] dispatch exception:", e);
