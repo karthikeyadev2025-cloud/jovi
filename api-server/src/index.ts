@@ -1,7 +1,26 @@
 // api-server/src/index.ts
 // Node.js Business API Server
-// Run: npx ts-node src/index.ts
-// Deploy: Railway / Render alongside voice pipeline
+
+// ─── Sentry instrumentation ──────────────────────────────
+// MUST come before any other imports so Sentry can patch Express, HTTP,
+// and Postgres client behaviour. SENTRY_DSN unset = Sentry disabled
+// gracefully (dev / CI). Errors are captured automatically by the
+// expressErrorHandler at the BOTTOM of the middleware stack.
+import * as Sentry from "@sentry/node";
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn:               process.env.SENTRY_DSN,
+    environment:       process.env.NODE_ENV || "development",
+    release:           process.env.RELEASE_SHA || undefined,
+    tracesSampleRate:  0.1,         // 10% of requests get perf traces
+    // Don't capture spans for health checks — they'd dominate the trace volume
+    beforeSendTransaction(event) {
+      if (event.transaction === "GET /health" || event.transaction === "GET /ready") return null;
+      return event;
+    },
+  });
+}
 
 import express from "express";
 import cors from "cors";
@@ -25,6 +44,40 @@ const PIPELINE_URL    = process.env.PIPELINE_URL || "http://localhost:8000";
 
 // ── SUPABASE ADMIN CLIENT ─────────────────────────────────
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── AUDIT LOG HELPER ──────────────────────────────────────
+// DPDP Act Section 8(7) requires data fiduciaries to maintain records
+// of personal data processing. Backend code should call audit() for any
+// action listed in supabase/003_audit_log.sql. Writes go through the
+// service-role key so RLS doesn't block them. Failures are logged but
+// never thrown — audit logging must not break the underlying operation.
+async function audit(
+  action:     string,
+  ctx: {
+    tenantId?:    string;
+    actorId?:     string;
+    actorEmail?:  string;
+    resource?:    string;
+    metadata?:    Record<string, any>;
+    req?:         any;
+  }
+) {
+  try {
+    await sb.from("audit_log").insert({
+      tenant_id:   ctx.tenantId   || null,
+      actor_id:    ctx.actorId    || null,
+      actor_email: ctx.actorEmail || null,
+      action,
+      resource:    ctx.resource   || null,
+      metadata:    ctx.metadata   || {},
+      ip:          ctx.req?.ip    || null,
+      user_agent:  ctx.req?.get?.("user-agent") || null,
+    });
+  } catch (e) {
+    console.error(`[audit] ${action} failed:`, e);
+    // Sentry will pick this up via console.error breadcrumbs
+  }
+}
 
 // ── MIDDLEWARE ────────────────────────────────────────────
 app.use(cors({ origin: "*" }));
@@ -89,7 +142,36 @@ async function getTenantId(userId: string): Promise<string | null> {
 // EXOTEL WEBHOOK — inbound call handler
 // Exotel calls this URL when someone dials your DID
 // ════════════════════════════════════════════════
-app.post("/webhooks/exotel/inbound", async (req, res) => {
+// ── Webhook auth helpers ──
+// Exotel doesn't sign webhooks like Stripe/Razorpay. Protection is a
+// shared-secret token in the URL: caller must hit
+//   /webhooks/exotel/inbound/<EXOTEL_WEBHOOK_TOKEN>
+// Token is configured in Exotel's webhook URL when you set up the DID.
+// Without this, anyone hitting the public endpoint can trigger AI calls
+// (and burn Sarvam/Gemini/LiveKit credits).
+const EXOTEL_TOKEN = process.env.EXOTEL_WEBHOOK_TOKEN || "";
+
+function checkExotelToken(req: any, res: any): boolean {
+  if (!EXOTEL_TOKEN) {
+    // Misconfiguration — fail closed
+    console.error("[Exotel] EXOTEL_WEBHOOK_TOKEN env not set — rejecting");
+    res.status(500).json({ error: "Webhook misconfigured" });
+    return false;
+  }
+  // constant-time compare to prevent timing attacks
+  const provided = req.params.token || "";
+  const ok = provided.length === EXOTEL_TOKEN.length &&
+             crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(EXOTEL_TOKEN));
+  if (!ok) {
+    console.warn(`[Exotel] Bad token from ${req.ip}`);
+    res.status(403).json({ error: "Forbidden" });
+    return false;
+  }
+  return true;
+}
+
+app.post("/webhooks/exotel/inbound/:token", async (req, res) => {
+  if (!checkExotelToken(req, res)) return;
   try {
     // Exotel sends form-encoded data
     const body   = req.body as Record<string, string>;
@@ -144,7 +226,8 @@ app.post("/webhooks/exotel/inbound", async (req, res) => {
 });
 
 // Exotel call status callback
-app.post("/webhooks/exotel/status", async (req, res) => {
+app.post("/webhooks/exotel/status/:token", async (req, res) => {
+  if (!checkExotelToken(req, res)) return;
   try {
     const body = req.body as Record<string, string>;
     const callSid = body.CallSid || "";
@@ -717,6 +800,279 @@ async function sendEmail(tenantId: string, template: string, data: Record<string
     }),
   });
 }
+
+// ═══════════════════════════════════════════════════════════
+// PUBLIC API (v1) — tenant API key authenticated
+// ═══════════════════════════════════════════════════════════
+import bcrypt from "bcryptjs";
+import { mountOutboundRoutes } from "./outbound";
+
+mountOutboundRoutes(app, sb, verifyInternal, audit);
+
+// Generate a new API key: jvk_live_<32 random url-safe chars>.
+// Returned ONLY at issue — never recoverable afterwards.
+function generateApiKey(mode: "live" | "test" = "live"): string {
+  const bytes = crypto.randomBytes(24);                  // 24 bytes = 32 base64-url chars
+  const body  = bytes.toString("base64url");
+  return `jvk_${mode}_${body}`;
+}
+
+// Public API key auth middleware. Verifies the Authorization header is
+// "Bearer jvk_..." and the key matches a non-revoked, non-expired record.
+// On success, attaches { tenantId, apiKeyId, scopes } to req.
+async function verifyApiKey(req: any, res: any, next: any) {
+  const auth = req.headers.authorization || "";
+  const m = auth.match(/^Bearer (jvk_(?:live|test)_[A-Za-z0-9_-]+)$/);
+  if (!m) return res.status(401).json({ error: "Missing or malformed Bearer token" });
+
+  const fullKey = m[1];
+  const prefix  = fullKey.slice(0, 12);          // "jvk_live_xyz" — 12 chars
+
+  // Look up candidates by prefix only (cheap indexed query)
+  const { data: candidates, error } = await sb
+    .from("api_keys")
+    .select("id, tenant_id, key_hash, mode, scopes, expires_at, revoked_at")
+    .eq("prefix", prefix)
+    .is("revoked_at", null);
+
+  if (error || !candidates || candidates.length === 0) {
+    return res.status(401).json({ error: "Invalid API key" });
+  }
+
+  // Compare against each candidate's hash (rare collision case — bcrypt is slow,
+  // but typically there's exactly one match per prefix)
+  let matched: any = null;
+  for (const c of candidates) {
+    if (await bcrypt.compare(fullKey, c.key_hash)) {
+      matched = c;
+      break;
+    }
+  }
+  if (!matched) return res.status(401).json({ error: "Invalid API key" });
+
+  if (matched.expires_at && new Date(matched.expires_at) < new Date()) {
+    return res.status(401).json({ error: "API key expired" });
+  }
+
+  // Update usage stats — fire and forget, don't block the request
+  sb.from("api_keys")
+    .update({
+      last_used_at:  new Date().toISOString(),
+      last_used_ip:  req.ip,
+      request_count: (matched.request_count || 0) + 1,
+    })
+    .eq("id", matched.id)
+    .then(() => {}, () => {});
+
+  req.apiAuth = {
+    tenantId:  matched.tenant_id,
+    apiKeyId:  matched.id,
+    mode:      matched.mode,
+    scopes:    matched.scopes || [],
+  };
+  next();
+}
+
+// Scope checker — pass to routes that require specific permissions
+function requireScope(...needed: string[]) {
+  return (req: any, res: any, next: any) => {
+    const have: string[] = req.apiAuth?.scopes || [];
+    if (!needed.every(s => have.includes(s))) {
+      return res.status(403).json({
+        error: "Insufficient scope",
+        required: needed,
+        granted:  have,
+      });
+    }
+    next();
+  };
+}
+
+// ─── Tighter rate limit on the public API to discourage scraping ───
+const publicApiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max:      100,                // 100 req/min/key (use apiKeyId as the key)
+  keyGenerator: (req: any) => req.apiAuth?.apiKeyId || req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ─── Routes: /api/v1/* ────────────────────────────────────
+// All require verifyApiKey. Scopes default to read-only.
+
+// GET /api/v1/calls?from=ISO&to=ISO&limit=50&cursor=...
+app.get("/api/v1/calls",
+  verifyApiKey, publicApiLimiter, requireScope("calls.read"),
+  async (req: any, res) => {
+    const { from, to, cursor } = req.query;
+    const limit = Math.min(parseInt((req.query.limit as string) || "50", 10), 200);
+
+    let q = sb.from("calls")
+      .select("id, caller_number, direction, status, duration_seconds, intent, created_at")
+      .eq("tenant_id", req.apiAuth.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(limit + 1);
+
+    if (from)   q = q.gte("created_at", from);
+    if (to)     q = q.lte("created_at", to);
+    if (cursor) q = q.lt("created_at",  cursor);
+
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ error: error.message });
+
+    const has_more = (data?.length || 0) > limit;
+    const items = has_more ? data!.slice(0, limit) : (data || []);
+    const next_cursor = has_more ? items[items.length - 1].created_at : null;
+
+    res.json({ items, has_more, next_cursor });
+  }
+);
+
+// GET /api/v1/calls/:id — full call detail including transcript
+app.get("/api/v1/calls/:id",
+  verifyApiKey, publicApiLimiter, requireScope("calls.read"),
+  async (req: any, res) => {
+    const { data, error } = await sb.from("calls")
+      .select("*")
+      .eq("tenant_id", req.apiAuth.tenantId)
+      .eq("id", req.params.id)
+      .single();
+    if (error || !data) return res.status(404).json({ error: "Not found" });
+    res.json(data);
+  }
+);
+
+// GET /api/v1/appointments?from=...&to=...
+app.get("/api/v1/appointments",
+  verifyApiKey, publicApiLimiter, requireScope("appointments.read"),
+  async (req: any, res) => {
+    const { from, to } = req.query;
+    const limit = Math.min(parseInt((req.query.limit as string) || "50", 10), 200);
+    let q = sb.from("appointments")
+      .select("*")
+      .eq("tenant_id", req.apiAuth.tenantId)
+      .order("scheduled_at", { ascending: true })
+      .limit(limit);
+    if (from) q = q.gte("scheduled_at", from);
+    if (to)   q = q.lte("scheduled_at", to);
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ items: data || [] });
+  }
+);
+
+// GET /api/v1/usage — current month's minutes consumed vs plan limit
+app.get("/api/v1/usage",
+  verifyApiKey, publicApiLimiter,
+  async (req: any, res) => {
+    const startOfMonth = new Date();
+    startOfMonth.setUTCDate(1);
+    startOfMonth.setUTCHours(0, 0, 0, 0);
+
+    const { data, error } = await sb.from("calls")
+      .select("duration_seconds")
+      .eq("tenant_id", req.apiAuth.tenantId)
+      .gte("created_at", startOfMonth.toISOString());
+    if (error) return res.status(500).json({ error: error.message });
+
+    const seconds = (data || []).reduce((sum, c: any) => sum + (c.duration_seconds || 0), 0);
+    res.json({
+      period_start:    startOfMonth.toISOString(),
+      seconds_used:    seconds,
+      minutes_used:    Math.ceil(seconds / 60),
+    });
+  }
+);
+
+// ─── Key issuance / revocation (DASHBOARD-authenticated, NOT API-key) ───
+// These use the verifyInternal middleware so only the dashboard can call them.
+
+// POST /api/keys — issue a new key for a tenant
+// Body: { tenant_id, name, scopes?, expires_at? }
+// Returns { id, key } — the key plaintext is shown ONCE and never again.
+app.post("/api/keys", verifyInternal, async (req, res) => {
+  const { tenant_id, name, scopes = [], expires_at, created_by } = req.body;
+  if (!tenant_id || !name) return res.status(400).json({ error: "tenant_id and name required" });
+
+  const key       = generateApiKey("live");
+  const prefix    = key.slice(0, 12);
+  const key_hash  = await bcrypt.hash(key, 10);
+
+  const { data, error } = await sb.from("api_keys").insert({
+    tenant_id, name, prefix, key_hash, scopes,
+    expires_at: expires_at || null,
+    created_by: created_by || null,
+  }).select("id, prefix, name, scopes, created_at").single();
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  await audit("api_key.issued", {
+    tenantId: tenant_id, actorId: created_by, req,
+    metadata: { key_id: data!.id, name, scopes },
+  });
+
+  // Plaintext key returned ONLY here, ONCE.
+  res.status(201).json({ ...data, key });
+});
+
+// POST /api/keys/:id/revoke — revoke a key
+app.post("/api/keys/:id/revoke", verifyInternal, async (req, res) => {
+  const { revoked_by } = req.body;
+  const { data, error } = await sb.from("api_keys")
+    .update({ revoked_at: new Date().toISOString(), revoked_by })
+    .eq("id", req.params.id)
+    .select("id, tenant_id, name")
+    .single();
+
+  if (error || !data) return res.status(404).json({ error: "Not found" });
+
+  await audit("api_key.revoked", {
+    tenantId: data.tenant_id, actorId: revoked_by, req,
+    metadata: { key_id: data.id, name: data.name },
+  });
+
+  res.json({ ok: true });
+});
+
+// ── HEALTH + READINESS ───────────────────────────────────
+// Railway / k8s probes hit these. Keep them DUMB and FAST.
+//   /health  — process is running (liveness, no deps checked)
+//   /ready   — process can serve traffic (touches DB)
+const STARTED_AT = Date.now();
+
+app.get("/health", (_req, res) => {
+  res.json({
+    status:     "ok",
+    service:    "jovio-api",
+    uptime_ms:  Date.now() - STARTED_AT,
+    pid:        process.pid,
+  });
+});
+
+app.get("/ready", async (_req, res) => {
+  try {
+    // Hit a cheap table to confirm DB reachable. Limit 1 = ~1ms.
+    const { error } = await sb.from("tenants").select("id").limit(1);
+    if (error) throw error;
+    res.json({ status: "ready", db: "ok" });
+  } catch (e: any) {
+    res.status(503).json({ status: "unready", db: "error", message: e.message });
+  }
+});
+
+// ─── Sentry error handler (must be after all routes, before listen) ───
+// Catches anything that throws synchronously, returns a rejected promise,
+// or calls next(err). Tags the error with the request route so it's
+// queryable in Sentry's Issues view.
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
+
+// Final fallback so the user sees a clean 500 instead of express's HTML
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error("[unhandled]", err);
+  res.status(500).json({ error: "Internal server error" });
+});
 
 app.listen(PORT, () => {
   console.log(`Jovio API Server running on port ${PORT}`);

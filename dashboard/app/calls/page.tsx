@@ -151,6 +151,48 @@ function CallDetail({ call, onClose }: { call: CallRecord; onClose: () => void }
   );
 }
 
+// CSV export — generates a UTF-8 CSV with BOM so Excel opens it cleanly
+// without "Save in CSV format?" prompts and without mangling Telugu /
+// any other non-ASCII text.
+function exportCsv(rows: CallRecord[]) {
+  if (rows.length === 0) return;
+
+  const cols: { key: keyof CallRecord; label: string; map?: (v: any, row: CallRecord) => string }[] = [
+    { key: "created_at",       label: "Date",         map: v => new Date(v).toLocaleString("en-IN") },
+    { key: "caller_number",    label: "Caller" },
+    { key: "direction",        label: "Direction" },
+    { key: "status",           label: "Status" },
+    { key: "intent",           label: "Intent" },
+    { key: "duration_seconds", label: "Duration (s)" },
+    { key: "transcript",       label: "Transcript",   map: v => (v || "").toString().replace(/\s+/g, " ").slice(0, 8000) },
+  ];
+
+  const escape = (val: any) => {
+    if (val === null || val === undefined) return "";
+    const s = String(val);
+    // RFC 4180: quote if contains comma, quote, or newline; escape quotes by doubling
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const header = cols.map(c => escape(c.label)).join(",");
+  const body   = rows.map(r =>
+    cols.map(c => escape(c.map ? c.map((r as any)[c.key], r) : (r as any)[c.key])).join(",")
+  ).join("\n");
+
+  // UTF-8 BOM so Excel auto-detects encoding
+  const csv  = "\uFEFF" + header + "\n" + body;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href     = url;
+  a.download = `jovio-calls-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export default function CallsPage() {
   const [calls, setCalls]         = useState<CallRecord[]>([]);
   const [selected, setSelected]   = useState<CallRecord | null>(null);
@@ -210,6 +252,20 @@ export default function CallsPage() {
         <span style={{ color: C.dim, fontSize: 12, marginLeft: "auto" }}>
           {filtered.length} calls
         </span>
+        <button
+          onClick={() => exportCsv(filtered)}
+          disabled={filtered.length === 0}
+          title="Download as CSV (Excel / Sheets compatible)"
+          style={{
+            padding: "7px 14px", borderRadius: 7, fontSize: 12, fontWeight: 700,
+            background: filtered.length === 0 ? C.hi : C.grn + "22",
+            color: filtered.length === 0 ? C.dim : C.grn,
+            border: "1px solid " + (filtered.length === 0 ? C.bord : C.grn + "66"),
+            cursor: filtered.length === 0 ? "not-allowed" : "pointer",
+          }}
+        >
+          ↓ Export CSV
+        </button>
       </div>
 
       <div style={{ background: C.surf, border: "1px solid " + C.bord, borderRadius: 10, overflow: "hidden" }}>

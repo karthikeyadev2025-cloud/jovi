@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import JovioLogo from "../components/JovioLogo";
 
@@ -19,6 +19,114 @@ const J = {
 
 function Logo({ size = 40, showText = true }: { size?: number; showText?: boolean }) {
   return <JovioLogo size={size} showText={showText} variant="horizontal" />;
+}
+
+/**
+ * Demo audio player — orange/green branded play/pause + progress bar.
+ *
+ * Sample URL comes from NEXT_PUBLIC_VOICE_SAMPLE_BASE_URL (same env used
+ * by the dashboard voice preview). Set it to a public Supabase Storage
+ * bucket URL and upload `sample-call.mp3` there. If the env isn't set,
+ * the player shows a "Coming soon" state instead of breaking.
+ */
+function DemoPlayer() {
+  const base = process.env.NEXT_PUBLIC_VOICE_SAMPLE_BASE_URL;
+  const src  = base ? `${base.replace(/\/$/, "")}/sample-call.mp3` : null;
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing,  setPlaying]  = useState(false);
+  const [progress, setProgress] = useState(0);   // 0..1
+  const [duration, setDuration] = useState(0);   // seconds
+  const [time,     setTime]     = useState(0);   // seconds elapsed
+  const [errored,  setErrored]  = useState(false);
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onTime  = () => { setTime(a.currentTime); setProgress(a.duration ? a.currentTime / a.duration : 0); };
+    const onMeta  = () => setDuration(a.duration || 0);
+    const onEnd   = () => { setPlaying(false); setProgress(0); setTime(0); a.currentTime = 0; };
+    const onErr   = () => { setErrored(true); setPlaying(false); };
+    a.addEventListener("timeupdate", onTime);
+    a.addEventListener("loadedmetadata", onMeta);
+    a.addEventListener("ended", onEnd);
+    a.addEventListener("error", onErr);
+    return () => {
+      a.removeEventListener("timeupdate", onTime);
+      a.removeEventListener("loadedmetadata", onMeta);
+      a.removeEventListener("ended", onEnd);
+      a.removeEventListener("error", onErr);
+    };
+  }, []);
+
+  const toggle = () => {
+    const a = audioRef.current;
+    if (!a || !src) return;
+    if (playing) { a.pause(); setPlaying(false); }
+    else         { a.play().then(() => setPlaying(true)).catch(() => setErrored(true)); }
+  };
+
+  const mmss = (s: number) => {
+    const m = Math.floor(s / 60);
+    const ss = Math.floor(s % 60).toString().padStart(2, "0");
+    return `${m}:${ss}`;
+  };
+
+  if (!src) {
+    return (
+      <div style={{
+        background: J.vault, border: `1px solid ${J.border}`, borderRadius: 16,
+        padding: "32px 24px", color: J.textMid, fontSize: 14,
+      }}>
+        🎧 Demo audio coming soon. Email <a href="mailto:sales@jovio.in" style={{ color: J.mercury }}>sales@jovio.in</a> for a live demo call.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: J.vault, border: `1px solid ${J.border}`, borderRadius: 16,
+      padding: 24, display: "flex", alignItems: "center", gap: 20,
+      boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+    }}>
+      <button
+        onClick={toggle}
+        disabled={errored}
+        aria-label={playing ? "Pause" : "Play"}
+        style={{
+          flex: "0 0 64px", width: 64, height: 64, borderRadius: "50%",
+          background: errored ? J.surface : J.grad,
+          color: errored ? J.textMid : J.bg,
+          border: "none", fontSize: 22, fontWeight: 800,
+          cursor: errored ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: errored ? "none" : "0 8px 20px rgba(245, 158, 11, 0.3)",
+        }}>
+        {errored ? "✕" : playing ? "❚❚" : "▶"}
+      </button>
+
+      <div style={{ flex: 1, textAlign: "left" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+          <div style={{ color: J.chandra, fontSize: 14, fontWeight: 700 }}>
+            {errored ? "Could not load sample" : "Inbound clinic call · Telugu"}
+          </div>
+          <div style={{ color: J.textMid, fontSize: 12, fontFamily: "monospace" }}>
+            {mmss(time)} / {mmss(duration)}
+          </div>
+        </div>
+        <div style={{
+          height: 4, background: J.surface, borderRadius: 2, overflow: "hidden",
+        }}>
+          <div style={{
+            width: `${progress * 100}%`, height: "100%",
+            background: J.grad, transition: "width 0.1s linear",
+          }} />
+        </div>
+      </div>
+
+      <audio ref={audioRef} src={src} preload="metadata" />
+    </div>
+  );
 }
 
 function Button({ children, primary, href }: { children: React.ReactNode; primary?: boolean; href: string }) {
@@ -67,7 +175,19 @@ function LiveCounter() {
   );
 }
 
+function useIsMobile() {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const check = () => setM(window.innerWidth < 760);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return m;
+}
+
 export default function Home() {
+  const mobile = useIsMobile();
   return (
     <div style={{ minHeight: "100vh", background: J.bg, color: J.chandra }}>
 
@@ -75,40 +195,43 @@ export default function Home() {
         position: "sticky", top: 0, zIndex: 100,
         background: "rgba(7, 11, 25, 0.85)", backdropFilter: "blur(12px)",
         borderBottom: `1px solid ${J.border}`,
-        padding: "16px 5%", display: "flex",
+        padding: mobile ? "12px 16px" : "16px 5%", display: "flex",
         justifyContent: "space-between", alignItems: "center",
       }}>
-        <Logo size={36} />
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <a href="#features" style={{ color: J.textMid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-            Features
-          </a>
-          <a href="#pricing" style={{ color: J.textMid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
-            Pricing
-          </a>
+        <Logo size={mobile ? 30 : 36} showText={!mobile} />
+        <div style={{ display: "flex", gap: mobile ? 6 : 12, alignItems: "center" }}>
+          {!mobile && (
+            <>
+              <a href="#features" style={{ color: J.textMid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                Features
+              </a>
+              <a href="#pricing" style={{ color: J.textMid, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+                Pricing
+              </a>
+            </>
+          )}
           <Button href="https://jovi-smoky.vercel.app/login">Sign In</Button>
-          <Button primary href="https://jovi-smoky.vercel.app/signup">Get Started</Button>
+          {!mobile && <Button primary href="https://jovi-smoky.vercel.app/signup">Get Started</Button>}
         </div>
       </nav>
 
-      <section style={{ padding: "100px 5% 80px", textAlign: "center", maxWidth: 1200, margin: "0 auto" }}>
+      <section style={{ padding: mobile ? "48px 20px 40px" : "100px 5% 80px", textAlign: "center", maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ marginBottom: 36 }}>
           <LiveCounter />
         </div>
         <h1 style={{
-          fontSize: 72, fontWeight: 900, lineHeight: 1.05,
-          margin: "0 0 28px", letterSpacing: -2.5,
+          fontSize: mobile ? 38 : 72, fontWeight: 900, lineHeight: 1.1,
+          margin: "0 0 28px", letterSpacing: mobile ? -1 : -2.5,
         }}>
-          Your business never<br />
-          misses a call in{" "}
+          Your business never misses a call in{" "}
           <span style={{
             background: J.grad, WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
           }}>Telugu</span>
         </h1>
         <p style={{
-          fontSize: 20, color: J.textMid, maxWidth: 700,
-          margin: "0 auto 48px", lineHeight: 1.6,
+          fontSize: mobile ? 16 : 20, color: J.textMid, maxWidth: 700,
+          margin: "0 auto 36px", lineHeight: 1.6,
         }}>
           Jovio is a Telugu-first AI receptionist for Indian SMBs. Answers calls 24/7,
           books appointments, and sends WhatsApp confirmations — automatically.
@@ -122,8 +245,31 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Demo audio player ── */}
+      <section id="demo" style={{ scrollMarginTop: 72,
+        padding: mobile ? "48px 20px" : "80px 5%", maxWidth: 900, margin: "0 auto", textAlign: "center",
+      }}>
+        <div style={{
+          fontSize: 12, color: J.surya, fontWeight: 800, letterSpacing: 2,
+          textTransform: "uppercase", marginBottom: 12,
+        }}>
+          LISTEN
+        </div>
+        <h2 style={{
+          fontSize: 36, fontWeight: 900, color: J.chandra, marginBottom: 12, lineHeight: 1.2,
+        }}>
+          Hear Jovio handle a real call
+        </h2>
+        <p style={{ fontSize: 16, color: J.textMid, marginBottom: 40, lineHeight: 1.6 }}>
+          A 60-second sample of an inbound call to a clinic — appointment booked,
+          WhatsApp confirmation sent, all in Telugu. Press play.
+        </p>
+
+        <DemoPlayer />
+      </section>
+
       <section style={{
-        padding: "80px 5%", background: J.vault,
+        padding: mobile ? "48px 20px" : "80px 5%", background: J.vault,
         borderTop: `1px solid ${J.border}`, borderBottom: `1px solid ${J.border}`,
       }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -156,7 +302,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="features" style={{ padding: "100px 5%", maxWidth: 1200, margin: "0 auto" }}>
+      <section id="features" style={{ scrollMarginTop: 72, padding: mobile ? "56px 20px" : "100px 5%", maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 64 }}>
           <Pill color={J.surya}>FEATURES</Pill>
           <h2 style={{ fontSize: 44, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1.5 }}>
@@ -192,7 +338,7 @@ export default function Home() {
       </section>
 
       <section style={{
-        padding: "100px 5%", background: J.vault,
+        padding: mobile ? "56px 20px" : "100px 5%", background: J.vault,
         borderTop: `1px solid ${J.border}`, borderBottom: `1px solid ${J.border}`,
       }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -224,7 +370,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="pricing" style={{ padding: "100px 5%", maxWidth: 1200, margin: "0 auto" }}>
+      <section id="pricing" style={{ scrollMarginTop: 72, padding: mobile ? "56px 20px" : "100px 5%", maxWidth: 1200, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 64 }}>
           <Pill color={J.surya}>PRICING</Pill>
           <h2 style={{ fontSize: 44, fontWeight: 800, margin: "20px 0 16px", letterSpacing: -1.5 }}>
@@ -282,7 +428,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section style={{ padding: "120px 5%", textAlign: "center", maxWidth: 800, margin: "0 auto" }}>
+      <section style={{ padding: mobile ? "72px 20px" : "120px 5%", textAlign: "center", maxWidth: 800, margin: "0 auto" }}>
         <h2 style={{ fontSize: 56, fontWeight: 900, margin: "0 0 24px", letterSpacing: -2 }}>
           Stop missing calls.<br />
           Start with{" "}

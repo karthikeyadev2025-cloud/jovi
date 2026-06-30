@@ -43,3 +43,8 @@ logs/
 
 # Test outputs
 test_tts_output.wav
+
+# Flutter Android signing — NEVER commit
+flutter-app/android/key.properties
+flutter-app/android/*.jks
+flutter-app/android/*.keystore

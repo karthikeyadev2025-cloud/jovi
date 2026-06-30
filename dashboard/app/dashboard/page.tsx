@@ -172,6 +172,45 @@ export default function DashboardPage() {
             <StatCard icon="💬" value={stats.waSent}       label="WhatsApp Sent"        color={C.cyn}  />
           </div>
 
+          {/* First-run empty state — shown only when no data at all exists */}
+          {stats.total === 0 && activeCalls.length === 0 && recentCalls.length === 0 &&
+           missedCalls.length === 0 && appointments.length === 0 && (
+            <Card style={{ marginBottom: 20, padding: 32, textAlign: "center",
+                           background: `linear-gradient(135deg, ${C.glow}10 0%, ${C.cyn}10 100%)`,
+                           borderColor: C.glow + "44" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+              <div style={{ color: C.txt, fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
+                Welcome to Jovio
+              </div>
+              <div style={{ color: C.mid, fontSize: 13, lineHeight: 1.6, maxWidth: 480, margin: "0 auto 20px" }}>
+                Your AI receptionist isn't taking calls yet. Two quick steps to go live:
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 560, margin: "0 auto" }}>
+                <a href="/setup" style={{
+                  display: "block", padding: 16, background: C.surf,
+                  border: "1px solid " + C.bord, borderRadius: 10,
+                  textDecoration: "none", color: C.txt, textAlign: "left",
+                }}>
+                  <div style={{ color: C.glow, fontSize: 11, fontWeight: 800, marginBottom: 4 }}>STEP 1</div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>Pick a voice profile</div>
+                  <div style={{ color: C.dim, fontSize: 12, marginTop: 4 }}>Choose Standard / Clinic / Real Estate / Premium →</div>
+                </a>
+                <a href="/setup#forwarding" style={{
+                  display: "block", padding: 16, background: C.surf,
+                  border: "1px solid " + C.bord, borderRadius: 10,
+                  textDecoration: "none", color: C.txt, textAlign: "left",
+                }}>
+                  <div style={{ color: C.grn, fontSize: 11, fontWeight: 800, marginBottom: 4 }}>STEP 2</div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>Forward your number</div>
+                  <div style={{ color: C.dim, fontSize: 12, marginTop: 4 }}>Add the Jovio DID to your business line →</div>
+                </a>
+              </div>
+              <div style={{ color: C.dim, fontSize: 11, marginTop: 20 }}>
+                Stuck? Email <a href="mailto:support@jovio.in" style={{ color: C.grn }}>support@jovio.in</a>
+              </div>
+            </Card>
+          )}
+
           {/* Active calls live ticker */}
           {activeCalls.length > 0 && (
             <Card style={{ marginBottom: 20, borderColor: C.grn + "44", background: C.grn + "08" }}>

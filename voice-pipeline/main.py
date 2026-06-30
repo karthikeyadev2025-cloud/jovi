@@ -15,6 +15,30 @@ import httpx
 from datetime import datetime
 from typing import Optional
 
+# ─── Sentry — optional, no-op if SENTRY_DSN env not set ───
+# Init BEFORE FastAPI/LiveKit imports so the SDK can wrap them.
+_SENTRY_DSN = os.environ.get("SENTRY_DSN")
+if _SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
+
+        sentry_sdk.init(
+            dsn=_SENTRY_DSN,
+            environment=os.environ.get("JOVIO_ENV", "development"),
+            release=os.environ.get("RELEASE_SHA"),
+            traces_sample_rate=0.1,
+            integrations=[
+                FastApiIntegration(),
+                # Capture WARNING+ as breadcrumbs, ERROR+ as events
+                LoggingIntegration(level=logging.WARNING, event_level=logging.ERROR),
+            ],
+        )
+    except Exception as e:
+        # Sentry init failed — log and continue. Pipeline must stay up.
+        print(f"[sentry] init failed: {e}")
+
 # AES-256-GCM for call recording encryption at rest.
 # Lazy import — pipeline still boots if cryptography not installed yet
 # (CI/lint environments), only fails when actually encrypting a recording.
