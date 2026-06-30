@@ -75,7 +75,7 @@ function CallDetail({ call, onClose }: { call: CallRecord; onClose: () => void }
               textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
               Call Journey
             </div>
-            <div style={{ display: "flex", gap: 0, alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
               {[
                 "Call Received",
                 `Intent: ${call.intent || "Unknown"}`,
