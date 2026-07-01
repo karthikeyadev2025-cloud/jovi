@@ -752,10 +752,12 @@ class SpeechRequest(BaseModel):
 
 @app.get("/health")
 async def health():
+    from app.exotel import circuit_breaker as _cb
     return {
         "status": "ok",
         "service": "jovio-voice-pipeline",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "circuit_breakers": _cb.all_status(),
     }
 
 @app.post("/api/v1/call/inbound")

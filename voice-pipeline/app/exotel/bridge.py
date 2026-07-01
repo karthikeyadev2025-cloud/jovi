@@ -22,6 +22,7 @@ except ImportError:
     _HAS_CRYPTO = False
 
 from app.exotel import knowledge
+from app.exotel import circuit_breaker as cb
 
 log = logging.getLogger("exotel-bridge")
 logging.basicConfig(level=logging.INFO,
@@ -136,26 +137,49 @@ async def sarvam_stt(pcm_16k: bytes) -> str:
     with wave.open(buf, "wb") as wf:
         wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(PIPE_SR)
         wf.writeframes(pcm_16k)
+
+    if not cb.sarvam_stt_breaker.allow_request():
+        log.warning("sarvam_stt: circuit OPEN, skipping live call")
+        return ""
+
     async with httpx.AsyncClient(timeout=20) as c:
-        r = await c.post("https://api.sarvam.ai/speech-to-text",
-            headers={"api-subscription-key": SARVAM_KEY},
-            files={"file": ("audio.wav", buf.getvalue(), "audio/wav")},
-            data={"language_code":"te-IN", "model":"saarika:v2.5"})
+        try:
+            r = await c.post("https://api.sarvam.ai/speech-to-text",
+                headers={"api-subscription-key": SARVAM_KEY},
+                files={"file": ("audio.wav", buf.getvalue(), "audio/wav")},
+                data={"language_code":"te-IN", "model":"saarika:v2.5"})
+        except Exception as e:
+            log.error("STT request failed: %s", e)
+            cb.sarvam_stt_breaker.record_failure()
+            return ""
         if r.status_code != 200:
             log.error("STT %s: %s", r.status_code, r.text[:150])
+            cb.sarvam_stt_breaker.record_failure()
             return ""
+        cb.sarvam_stt_breaker.record_success()
         return r.json().get("transcript", "").strip()
 
 
 async def sarvam_tts(text: str, voice: str = DEFAULT_VOICE) -> bytes:
+    if not cb.sarvam_tts_breaker.allow_request():
+        log.warning("sarvam_tts: circuit OPEN, skipping live call")
+        return b""
+
     async with httpx.AsyncClient(timeout=30) as c:
-        r = await c.post("https://api.sarvam.ai/text-to-speech",
-            headers={"api-subscription-key": SARVAM_KEY},
-            json={"inputs":[text], "target_language_code":"te-IN",
-                  "speaker":voice, "model":"bulbul:v2"})
+        try:
+            r = await c.post("https://api.sarvam.ai/text-to-speech",
+                headers={"api-subscription-key": SARVAM_KEY},
+                json={"inputs":[text], "target_language_code":"te-IN",
+                      "speaker":voice, "model":"bulbul:v2"})
+        except Exception as e:
+            log.error("TTS request failed: %s", e)
+            cb.sarvam_tts_breaker.record_failure()
+            return b""
         if r.status_code != 200:
             log.error("TTS %s: %s", r.status_code, r.text[:150])
+            cb.sarvam_tts_breaker.record_failure()
             return b""
+        cb.sarvam_tts_breaker.record_success()
         wav = base64.b64decode(r.json()["audios"][0])
         with wave.open(io.BytesIO(wav), "rb") as wf:
             return wf.readframes(wf.getnframes())
@@ -166,17 +190,31 @@ async def gemini_reply(history: list, system: str) -> str:
                  "parts":[{"text":m["content"]}]} for m in history]
     url = ("https://generativelanguage.googleapis.com/v1beta/models/"
            "gemini-2.5-flash:generateContent?key=" + GEMINI_KEY)
+
+    if not cb.gemini_breaker.allow_request():
+        log.warning("gemini_reply: circuit OPEN, skipping live call")
+        return "క్షమించండి, technical issue."
+
     async with httpx.AsyncClient(timeout=30) as c:
-        r = await c.post(url, headers={"Content-Type":"application/json"},
-            json={"system_instruction":{"parts":[{"text":system}]},
-                  "contents":contents,
-                  "generationConfig":{"maxOutputTokens":150,"temperature":0.7}})
+        try:
+            r = await c.post(url, headers={"Content-Type":"application/json"},
+                json={"system_instruction":{"parts":[{"text":system}]},
+                      "contents":contents,
+                      "generationConfig":{"maxOutputTokens":150,"temperature":0.7}})
+        except Exception as e:
+            log.error("Gemini request failed: %s", e)
+            cb.gemini_breaker.record_failure()
+            return "క్షమించండి, technical issue."
         if r.status_code != 200:
             log.error("Gemini %s: %s", r.status_code, r.text[:200])
+            cb.gemini_breaker.record_failure()
             return "క్షమించండి, technical issue."
         try:
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            reply = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            cb.gemini_breaker.record_success()
+            return reply
         except (KeyError, IndexError):
+            cb.gemini_breaker.record_failure()
             return "క్షమించండి, మళ్ళీ చెప్పగలరా?"
 
 
@@ -402,6 +440,11 @@ class Session:
             log.info("speak_dynamic: %s", text[:60])
             pcm_22k = await sarvam_tts(text, self.tenant.get("voice_profile", DEFAULT_VOICE))
             if not pcm_22k:
+                # Live TTS failed (or the circuit breaker skipped it entirely) —
+                # caller should hear SOMETHING, not dead air. Falls back to a
+                # pre-cached clip that needs no live Sarvam call to play.
+                log.warning("speak_dynamic: TTS unavailable, playing cached fallback")
+                await self.play_cached("technical_difficulty")
                 return
             pcm_8k, self.downsample_state = audioop.ratecv(
                 pcm_22k, 2, 1, TTS_SR, EXOTEL_SR, self.downsample_state)
