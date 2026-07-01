@@ -78,7 +78,7 @@ export default function Shell({ children, title }: { children: React.ReactNode; 
             <a key={item.href} href={item.href} style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "9px 10px", borderRadius: 8, marginBottom: 2,
-              background: active ? C.acc + "33" : "transparent",
+              background: active ? C.glow + "33" : "transparent",
               border: "1px solid " + (active ? C.glow + "44" : "transparent"),
               color: active ? C.gbr : C.mid, fontSize: 13, fontWeight: active ? 700 : 400,
               transition: "all 0.15s",
