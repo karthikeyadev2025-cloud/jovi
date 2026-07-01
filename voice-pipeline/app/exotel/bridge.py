@@ -21,6 +21,8 @@ try:
 except ImportError:
     _HAS_CRYPTO = False
 
+from app.exotel import knowledge
+
 log = logging.getLogger("exotel-bridge")
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s | %(message)s")
@@ -352,6 +354,7 @@ class Session:
         self.socket_open = True
         self.recording_buf = bytearray()
         self.call_row_id: Optional[str] = None
+        self.voice_profile_id: Optional[str] = None
         self.started_at: Optional[float] = None
 
     async def send_pcm(self, pcm_bytes: bytes):
@@ -477,6 +480,7 @@ async def handle_exotel_ws(ws: WebSocket):
                             "voice_profile": SKU_VOICE.get(
                                 vp.get("profile_sku") or "standard", DEFAULT_VOICE),
                         }
+                        s.voice_profile_id = vp.get("id")
                         s._sys = build_sku_prompt(vp)
                         log.info("voice profile matched: sku=%s business=%s",
                                  vp.get("profile_sku"), vp.get("business_name"))
@@ -536,7 +540,19 @@ async def _handle_utterance(s: Session, pcm: bytes):
             return
         log.info("caller: %s", text)
         s.history.append({"role":"user","content":text})
-        reply = await gemini_reply(s.history, s._sys)
+
+        # RAG: only runs when a real voice_profile is provisioned (demo
+        # fallback has none, so this is a no-op there). A failure at any
+        # step inside retrieve_context just means no extra context for
+        # this turn — never blocks or delays the call beyond the lookup.
+        sys_for_turn = s._sys
+        if s.voice_profile_id:
+            snippets = await knowledge.retrieve_context(s.voice_profile_id, text)
+            if snippets:
+                log.info("knowledge base: %d snippet(s) matched", len(snippets))
+                sys_for_turn = knowledge.augment_prompt(s._sys, snippets)
+
+        reply = await gemini_reply(s.history, sys_for_turn)
         log.info("ai: %s", reply)
         s.history.append({"role":"assistant","content":reply})
         await s.speak_dynamic(reply)
