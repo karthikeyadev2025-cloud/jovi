@@ -2,24 +2,11 @@
 Exotel <-> Jovio voice bridge — Phase 2 with pre-cached greeting.
 Greeting is pre-baked to mu-law and streamed within ~50ms of 'start'.
 Sarvam is only called mid-conversation for dynamic replies.
-
-Recording: the full call audio (caller turns + AI turns, in the order they
-actually happened — there's no barge-in yet so this is a faithful timeline)
-is buffered in memory as it streams, then on 'stop' it's wrapped as a WAV,
-AES-256-GCM encrypted with JOVIO_RECORDING_KEY, and uploaded to Supabase
-Storage. A `calls` row is created on 'start' and finalized on 'stop' so the
-recording has somewhere to attach (recording_path, duration_seconds).
 """
-import asyncio, audioop, base64, json, logging, os, secrets, time, wave, io
+import asyncio, audioop, base64, json, logging, os, wave, io
 from typing import Optional
 import httpx
 from fastapi import WebSocket, WebSocketDisconnect
-
-try:
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    _HAS_CRYPTO = True
-except ImportError:
-    _HAS_CRYPTO = False
 
 log = logging.getLogger("exotel-bridge")
 logging.basicConfig(level=logging.INFO,
@@ -121,119 +108,6 @@ async def lookup_tenant(caller: str) -> dict:
     return {"name":"Jovio Demo", "business_type":"general", "voice_profile":DEFAULT_VOICE}
 
 
-# ─── Call row + recording persistence ─────────────────────
-async def save_call_row(data: dict) -> Optional[str]:
-    """Create a `calls` row. Returns the new row's id, or None on failure —
-    never raises, a metadata-save failure must not break the live call."""
-    async with httpx.AsyncClient(timeout=8) as c:
-        try:
-            r = await c.post(f"{SUPABASE_URL}/rest/v1/calls",
-                headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
-                         "Content-Type": "application/json", "Prefer": "return=representation"},
-                json=data)
-            if r.status_code in (200, 201) and r.json():
-                return r.json()[0]["id"]
-            log.warning("save_call_row %s: %s", r.status_code, r.text[:200])
-        except Exception as e:
-            log.warning("save_call_row failed: %s", e)
-    return None
-
-
-async def update_call_row(call_id: str, updates: dict):
-    async with httpx.AsyncClient(timeout=8) as c:
-        try:
-            r = await c.patch(f"{SUPABASE_URL}/rest/v1/calls",
-                headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
-                         "Content-Type": "application/json"},
-                params={"id": f"eq.{call_id}"}, json=updates)
-            if r.status_code >= 300:
-                log.warning("update_call_row %s: %s", r.status_code, r.text[:200])
-        except Exception as e:
-            log.warning("update_call_row failed: %s", e)
-
-
-async def upload_recording_blob(path: str, blob: bytes) -> bool:
-    """Upload encrypted recording bytes to Supabase Storage. Bucket name is
-    configurable via SUPABASE_RECORDINGS_BUCKET (defaults to 'recordings').
-    Bucket must exist and be PRIVATE — encryption is defense-in-depth, not
-    a substitute for access control."""
-    bucket = os.getenv("SUPABASE_RECORDINGS_BUCKET", "recordings")
-    async with httpx.AsyncClient(timeout=30) as c:
-        try:
-            r = await c.post(f"{SUPABASE_URL}/storage/v1/object/{bucket}/{path}",
-                headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
-                         "Content-Type": "application/octet-stream", "x-upsert": "true"},
-                content=blob)
-            if r.status_code >= 300:
-                log.warning("upload_recording_blob %s: %s", r.status_code, r.text[:200])
-                return False
-            return True
-        except Exception as e:
-            log.warning("upload_recording_blob failed: %s", e)
-            return False
-
-
-def _pcm8k_to_wav(pcm_8k: bytes) -> bytes:
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wf:
-        wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(EXOTEL_SR)
-        wf.writeframes(pcm_8k)
-    return buf.getvalue()
-
-
-def _encrypt_recording(wav_bytes: bytes, tenant_id: str, call_key: str) -> Optional[bytes]:
-    """AES-256-GCM. Stored layout: [12-byte nonce][ciphertext + GCM tag].
-    Key: JOVIO_RECORDING_KEY_<tenant_id> override if set, else the shared
-    JOVIO_RECORDING_KEY. Must be a 32-byte key, base64-encoded in env."""
-    if not _HAS_CRYPTO:
-        log.error("cryptography not installed; skipping recording encryption")
-        return None
-    key_b64 = os.getenv(f"JOVIO_RECORDING_KEY_{tenant_id}") or os.getenv("JOVIO_RECORDING_KEY")
-    if not key_b64:
-        log.error("JOVIO_RECORDING_KEY not set; skipping recording")
-        return None
-    try:
-        key = base64.b64decode(key_b64)
-        if len(key) != 32:
-            log.error("recording key must decode to 32 bytes, got %d", len(key))
-            return None
-        nonce = secrets.token_bytes(12)
-        ciphertext = AESGCM(key).encrypt(nonce, wav_bytes, associated_data=call_key.encode())
-        return nonce + ciphertext
-    except Exception as e:
-        log.error("recording encryption failed: %s", e)
-        return None
-
-
-async def finalize_call_recording(s: "Session", duration_s: int):
-    """Runs after 'stop'. Encrypts + uploads the buffered call audio, then
-    closes out the calls row. Never raises past this point — call teardown
-    must not depend on Supabase or crypto succeeding."""
-    tenant_id = s.tenant.get("id") or "unmatched"
-    updates = {"status": "completed", "duration_seconds": duration_s}
-
-    if s.recording_buf:
-        try:
-            wav_bytes = _pcm8k_to_wav(bytes(s.recording_buf))
-            call_key = s.call_row_id or s.call_sid or "unknown"
-            blob = _encrypt_recording(wav_bytes, str(tenant_id), str(call_key))
-            if blob:
-                path = f"recordings/{tenant_id}/{call_key}.wav.enc"
-                if await upload_recording_blob(path, blob):
-                    updates["recording_path"] = path
-                    log.info("recording uploaded: %s (%d bytes raw -> %d bytes encrypted)",
-                              path, len(wav_bytes), len(blob))
-        except Exception as e:
-            log.warning("finalize_call_recording: recording step failed: %s", e)
-    else:
-        log.info("finalize_call_recording: no audio buffered, skipping recording")
-
-    if s.call_row_id:
-        await update_call_row(s.call_row_id, updates)
-    else:
-        log.warning("finalize_call_recording: no call_row_id, call metadata not saved")
-
-
 class Session:
     def __init__(self, ws: WebSocket):
         self.ws = ws
@@ -251,9 +125,6 @@ class Session:
         self.in_speech = False
         self.speaking_back = False
         self.socket_open = True
-        self.recording_buf = bytearray()
-        self.call_row_id: Optional[str] = None
-        self.started_at: Optional[float] = None
 
     async def send_pcm(self, pcm_bytes: bytes):
         """Send 16-bit PCM @ 8kHz to Exotel Voicebot in 3200-byte (100ms) chunks."""
@@ -285,10 +156,9 @@ class Session:
                 return
         self.speaking_back = True
         try:
-            pcm = open(path, "rb").read()  # raw 16-bit PCM @ 8kHz, despite old var name below
-            log.info("play_cached %s: %d bytes", key, len(pcm))
-            self.recording_buf.extend(pcm)
-            await self.send_pcm(pcm)
+            mulaw = open(path, "rb").read()
+            log.info("play_cached %s: %d bytes", key, len(mulaw))
+            await self.send_pcm(mulaw)
             log.info("play_cached done")
         finally:
             self.speaking_back = False
@@ -305,7 +175,6 @@ class Session:
                 pcm_22k, 2, 1, TTS_SR, EXOTEL_SR, self.downsample_state)
             self.speaking_back = True
             try:
-                self.recording_buf.extend(pcm_8k)
                 await self.send_pcm(pcm_8k)  # Send raw PCM, not mu-law
             finally:
                 self.speaking_back = False
@@ -366,7 +235,6 @@ async def handle_exotel_ws(ws: WebSocket):
                 cp = start.get("custom_parameters") or {}
                 s.caller = cp.get("From") or start.get("from") or ""
                 s.did    = cp.get("To")   or start.get("to")   or ""
-                s.started_at = time.time()
                 log.info("start call=%s from=%s to=%s", s.call_sid, s.caller, s.did)
                 asyncio.create_task(s.play_cached("default"))
                 async def _setup():
@@ -375,15 +243,6 @@ async def handle_exotel_ws(ws: WebSocket):
                         business_type=s.tenant.get("business_type","general"),
                         business_name=s.tenant.get("name","this business"))
                     log.info("tenant ready: %s", s.tenant.get("name"))
-                    s.call_row_id = await save_call_row({
-                        "tenant_id": s.tenant.get("id"),
-                        "caller_number": s.caller,
-                        "direction": "inbound",
-                        "status": "active",
-                        "exotel_call_sid": s.call_sid,
-                    })
-                    if s.call_row_id:
-                        log.info("call row created: %s", s.call_row_id)
                 asyncio.create_task(_setup())
 
             elif ev == "media":
@@ -391,7 +250,6 @@ async def handle_exotel_ws(ws: WebSocket):
                 if not payload:
                     continue
                 pcm_8k = base64.b64decode(payload)
-                s.recording_buf.extend(pcm_8k)
                 pcm_16k, s.upsample_state = audioop.ratecv(
                     pcm_8k, 2, 1, EXOTEL_SR, PIPE_SR, s.upsample_state)
                 utt = s.feed_caller_audio(pcm_16k)
@@ -401,8 +259,6 @@ async def handle_exotel_ws(ws: WebSocket):
             elif ev == "stop":
                 log.info("stop call=%s", s.call_sid)
                 s.socket_open = False
-                duration = int(time.time() - s.started_at) if s.started_at else 0
-                asyncio.create_task(finalize_call_recording(s, duration))
                 break
 
     except WebSocketDisconnect:
