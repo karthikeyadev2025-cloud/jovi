@@ -338,7 +338,7 @@ function TenantsPanel({ token }: { token: string }) {
         {["all","trial","active","suspended","starter","growth","scale"].map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
             padding: "7px 12px", borderRadius: 7, fontSize: 12, fontWeight: 700,
-            background: filter === f ? C.acc + "66" : C.hi,
+            background: filter === f ? C.glow + "66" : C.hi,
             color: filter === f ? C.gbr : C.mid,
             border: "1px solid " + (filter === f ? C.glow : C.bord),
           } as any}>{f}</button>
