@@ -185,9 +185,19 @@ async def sarvam_tts(text: str, voice: str = DEFAULT_VOICE) -> bytes:
             return wf.readframes(wf.getnframes())
 
 
+MAX_HISTORY_TURNS = 4  # matches the plan's own "4-turn cap" / "rolling 4-turn
+                        # memory window" design — without this, s.history grows
+                        # unbounded for the whole call and every turn re-sends
+                        # the entire growing transcript to Gemini.
+
+
 async def gemini_reply(history: list, system: str) -> str:
+    # Only the last N turns go to the model — s.history itself is left
+    # untouched by the caller so the full transcript is still available if
+    # it's ever needed for call records later.
+    trimmed = history[-(MAX_HISTORY_TURNS * 2):]
     contents = [{"role":"user" if m["role"]=="user" else "model",
-                 "parts":[{"text":m["content"]}]} for m in history]
+                 "parts":[{"text":m["content"]}]} for m in trimmed]
     url = ("https://generativelanguage.googleapis.com/v1beta/models/"
            "gemini-2.5-flash:generateContent?key=" + GEMINI_KEY)
 
@@ -210,6 +220,14 @@ async def gemini_reply(history: list, system: str) -> str:
             cb.gemini_breaker.record_failure()
             return "క్షమించండి, technical issue."
         try:
+            usage = r.json().get("usageMetadata", {})
+            cached = usage.get("cachedContentTokenCount", 0)
+            if cached:
+                # Implicit caching (automatic on Gemini 2.5+, needs no code —
+                # see MAX_HISTORY_TURNS docstring context) has started kicking
+                # in, most likely once RAG context pushed a prompt past the
+                # model's ~1024-token minimum. Worth knowing when it happens.
+                log.info("gemini_reply: %d cached tokens (implicit caching active)", cached)
             reply = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
             cb.gemini_breaker.record_success()
             return reply
