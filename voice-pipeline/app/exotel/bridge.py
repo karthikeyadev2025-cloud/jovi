@@ -55,6 +55,79 @@ Rules:
 - End when caller says ధన్యవాదాలు/thank you/bye.
 """
 
+# ─── Voice Profile SKUs ─────────────────────────────────────
+# Voice IDs MUST come from bulbul:v2's actual speaker catalog — that's the
+# model bridge.py calls (see sarvam_tts below, "model":"bulbul:v2"). Verified
+# valid speakers for that model: anushka, manisha, vidya, arya (female),
+# abhilash, karun, hitesh (male). Speaker names are NOT interchangeable with
+# bulbul:v3 — a v3-only name here would silently 400 every TTS call for that
+# SKU. (The dashboard's old SKU list used meera/pavithra/arvind, none of
+# which exist in either catalog — fixed alongside this.)
+SKU_VOICE = {
+    "standard":    "anushka",   # proven in production since today's earlier calls
+    "clinic":      "vidya",     # formal female tone
+    "real_estate": "karun",     # assertive male tone
+    "premium":     "manisha",   # distinct, refined female tone
+}
+
+SKU_SYSTEM_PROMPTS = {
+    "standard": """మీరు ఒక professional Telugu AI receptionist. మీ పేరు Jovio.
+Business: {business_name} — general business / retail / coaching.
+Rules:
+- Respond in Telugu, natural Tanglish code-switching for product names, numbers, dates.
+- SHORT responses (1-2 sentences). Phone call, not chat.
+- Warm, friendly, approachable tone.
+{shared_rules}""",
+    "clinic": """మీరు ఒక professional Telugu AI receptionist ఒక clinic/hospital కోసం. మీ పేరు Jovio.
+Business: {business_name} — hospital / clinic / diagnostic lab.
+Rules:
+- Respond in Telugu, formal and careful tone — ఇది ఆరోగ్యానికి సంబంధించిన విషయం.
+- SHORT responses (1-2 sentences). Phone call, not chat.
+- NEVER give medical advice, diagnosis, or suggest medication — always route clinical
+  questions to "డాక్టర్ గారు call back చేస్తారు".
+{shared_rules}""",
+    "real_estate": """మీరు ఒక professional Telugu AI receptionist ఒక real estate business కోసం. మీ పేరు Jovio.
+Business: {business_name} — real estate, site visits, property enquiries.
+Rules:
+- Respond in Telugu, warm and persuasive tone — site visit లేదా అపాయింట్‌మెంట్ బుక్ చేయమని encourage చేయండి.
+- SHORT responses (1-2 sentences). Phone call, not chat.
+- If caller mentions budget or location preference, acknowledge it and note it's passed to the team.
+{shared_rules}""",
+    "premium": """మీరు ఒక professional Telugu AI receptionist ఒక premium/luxury business కోసం. మీ పేరు Jovio.
+Business: {business_name} — premium, high-value clientele.
+Rules:
+- Respond in Telugu, comfortably code-switch to English where it reads as more refined.
+- SHORT responses (1-2 sentences). Phone call, not chat.
+- Extra courteous, unhurried tone.
+{shared_rules}""",
+}
+
+SKU_SHARED_RULES = """- Appointment: collect name, phone, time. Confirm via WhatsApp.
+- Business hours: {open_time}-{close_time}, {open_days}.
+{services_line}{appt_types_line}- Unknown info: "team check చేసి call back చేస్తారు".
+- Never invent prices/addresses.
+- End when caller says ధన్యవాదాలు/thank you/bye."""
+
+
+def build_sku_prompt(profile: dict) -> str:
+    """Build the SKU-specific system prompt from a voice_profiles row."""
+    sku = profile.get("profile_sku") or "standard"
+    template = SKU_SYSTEM_PROMPTS.get(sku, SKU_SYSTEM_PROMPTS["standard"])
+    services = profile.get("services") or []
+    appt_types = profile.get("appointment_types") or []
+    open_days = profile.get("open_days") or ["Mon","Tue","Wed","Thu","Fri","Sat"]
+    shared = SKU_SHARED_RULES.format(
+        open_time=profile.get("open_time") or "09:00",
+        close_time=profile.get("close_time") or "21:00",
+        open_days=", ".join(open_days),
+        services_line=(f"- Services: {', '.join(services)}.\n" if services else ""),
+        appt_types_line=(f"- Appointment types: {', '.join(appt_types)}.\n" if appt_types else ""),
+    )
+    return template.format(
+        business_name=profile.get("business_name") or "this business",
+        shared_rules=shared,
+    )
+
 
 async def sarvam_stt(pcm_16k: bytes) -> str:
     buf = io.BytesIO()
@@ -103,6 +176,32 @@ async def gemini_reply(history: list, system: str) -> str:
             return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
         except (KeyError, IndexError):
             return "క్షమించండి, మళ్ళీ చెప్పగలరా?"
+
+
+async def lookup_voice_profile(did: str) -> Optional[dict]:
+    """Real production routing: look up an active voice_profiles row by the
+    number the caller dialed (`did`), NOT the caller's own number. This is
+    how a provisioned client gets their own SKU/greeting/business context.
+    Returns None if nothing's provisioned for that DID — callers fall back
+    to lookup_tenant's demo-phone matching, which is a separate, unrelated
+    flow used only for the single demo line.
+    """
+    if not did:
+        return None
+    async with httpx.AsyncClient(timeout=8) as c:
+        try:
+            for col in ("did_number", "exotel_did"):
+                r = await c.get(f"{SUPABASE_URL}/rest/v1/voice_profiles",
+                    headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+                    params={col: f"eq.{did}", "status": "eq.active",
+                            "select": "id,tenant_id,profile_sku,business_name,open_time,"
+                                      "close_time,open_days,services,appointment_types",
+                            "limit": "1"})
+                if r.status_code == 200 and r.json():
+                    return r.json()[0]
+        except Exception as e:
+            log.warning("voice_profile lookup failed: %s", e)
+    return None
 
 
 async def lookup_tenant(caller: str) -> dict:
@@ -370,11 +469,23 @@ async def handle_exotel_ws(ws: WebSocket):
                 log.info("start call=%s from=%s to=%s", s.call_sid, s.caller, s.did)
                 asyncio.create_task(s.play_cached("default"))
                 async def _setup():
-                    s.tenant = await lookup_tenant(s.caller)
-                    s._sys = SYSTEM_PROMPT.format(
-                        business_type=s.tenant.get("business_type","general"),
-                        business_name=s.tenant.get("name","this business"))
-                    log.info("tenant ready: %s", s.tenant.get("name"))
+                    vp = await lookup_voice_profile(s.did)
+                    if vp:
+                        s.tenant = {
+                            "id": vp.get("tenant_id"),
+                            "name": vp.get("business_name") or "Jovio Client",
+                            "voice_profile": SKU_VOICE.get(
+                                vp.get("profile_sku") or "standard", DEFAULT_VOICE),
+                        }
+                        s._sys = build_sku_prompt(vp)
+                        log.info("voice profile matched: sku=%s business=%s",
+                                 vp.get("profile_sku"), vp.get("business_name"))
+                    else:
+                        s.tenant = await lookup_tenant(s.caller)
+                        s._sys = SYSTEM_PROMPT.format(
+                            business_type=s.tenant.get("business_type","general"),
+                            business_name=s.tenant.get("name","this business"))
+                        log.info("tenant ready (demo fallback): %s", s.tenant.get("name"))
                     s.call_row_id = await save_call_row({
                         "tenant_id": s.tenant.get("id"),
                         "caller_number": s.caller,

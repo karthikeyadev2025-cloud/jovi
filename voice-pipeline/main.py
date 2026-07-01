@@ -525,13 +525,17 @@ class JovioAgent:
         self.system_prompt = build_system_prompt(profile)
 
         # Voice speaker based on profile SKU
+        # NOTE: must be real bulbul:v2 speaker IDs — see SKU_VOICE in
+        # app/exotel/bridge.py for the verified source of truth. This dict
+        # previously used meera/pavithra/arvind, none of which exist in
+        # Sarvam's bulbul:v2 or v3 catalogs.
         sku_voices = {
-            "standard":    "meera",
-            "clinic":      "pavithra",
-            "real_estate": "arvind",
-            "premium":     "meera",
+            "standard":    "anushka",
+            "clinic":      "vidya",
+            "real_estate": "karun",
+            "premium":     "manisha",
         }
-        self.voice = sku_voices.get(profile.get("profile_sku","standard"), "meera")
+        self.voice = sku_voices.get(profile.get("profile_sku","standard"), "anushka")
 
     async def on_call_start(self) -> bytes:
         """Called when call connects. Play TRAI disclosure first.
