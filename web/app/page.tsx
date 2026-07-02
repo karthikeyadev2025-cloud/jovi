@@ -26,12 +26,15 @@ function Logo({ size = 40, showText = true }: { size?: number; showText?: boolea
  *
  * Sample URL comes from NEXT_PUBLIC_VOICE_SAMPLE_BASE_URL (same env used
  * by the dashboard voice preview). Set it to a public Supabase Storage
- * bucket URL and upload `sample-call.mp3` there. If the env isn't set,
- * the player shows a "Coming soon" state instead of breaking.
+ * bucket URL and upload `sample-call.wav` there — generated via
+ * voice-pipeline/scripts/generate_landing_demo.py. WAV, not MP3: browsers
+ * play WAV natively and generating MP3 would need an ffmpeg dependency
+ * the generation script doesn't assume is installed. If the env isn't
+ * set, the player shows a "Coming soon" state instead of breaking.
  */
 function DemoPlayer() {
   const base = process.env.NEXT_PUBLIC_VOICE_SAMPLE_BASE_URL;
-  const src  = base ? `${base.replace(/\/$/, "")}/sample-call.mp3` : null;
+  const src  = base ? `${base.replace(/\/$/, "")}/sample-call.wav` : null;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing,  setPlaying]  = useState(false);

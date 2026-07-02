@@ -49,7 +49,7 @@ DEFAULT_VOICE = "anushka"
 SYSTEM_PROMPT = """మీరు ఒక Telugu AI receptionist. మీ పేరు Jovio.
 Business: {business_name} ({business_type}).
 Rules:
-- Respond in Telugu only (code-switch English for names/numbers/dates).
+__LANGUAGE_RULE__
 - SHORT responses (1-2 sentences). Phone call, not chat.
 - Warm, professional, helpful.
 - Appointment: collect name, phone, time. Confirm via WhatsApp.
@@ -73,35 +73,73 @@ SKU_VOICE = {
     "premium":     "manisha",   # distinct, refined female tone
 }
 
+# ─── Live language switching ────────────────────────────────
+# Caller can speak Telugu, Hindi, or English and get replies in the SAME
+# language they just used — switches turn by turn, no fixed setting. Scoped
+# to these 3 languages deliberately (matches the actual target market);
+# Sarvam supports more, but untested languages aren't claimed as supported.
+#
+# Mechanism: sarvam_stt calls Saarika with language_code="unknown", which
+# auto-detects the spoken language and returns it in the response. That
+# detected code becomes the language for both Gemini's reply instruction
+# and the matching Sarvam TTS call for that turn. The SAME configured SKU
+# voice (e.g. "vidya" for Clinic) speaks across all 3 languages — Sarvam's
+# target_language_code affects pronunciation/normalization, not which
+# speaker names are valid, so the caller hears one consistent "person"
+# regardless of which language they're using.
+#
+# The greeting stays Telugu — the caller hasn't said anything yet at that
+# point, so there's nothing to detect language from. Switching starts from
+# the caller's first utterance onward.
+LANGUAGE_NAMES = {"te-IN": "Telugu", "hi-IN": "Hindi", "en-IN": "English"}
+DEFAULT_LANGUAGE = "te-IN"
+LANGUAGE_MARKER = "__LANGUAGE_RULE__"
+
+
+def language_instruction(lang_code: str) -> str:
+    name = LANGUAGE_NAMES.get(lang_code, LANGUAGE_NAMES[DEFAULT_LANGUAGE])
+    return (f"- Respond in {name} — the caller is currently speaking {name}, "
+            f"match them. If they switch languages mid-call, switch with them.")
+
+
+def apply_language(prompt: str, lang_code: str) -> str:
+    """Fills in the language directive for this turn. Uses a literal marker
+    + str.replace rather than .format() so business names/content containing
+    curly braces (RAG snippets, etc.) can't collide with prompt templating."""
+    return prompt.replace(LANGUAGE_MARKER, language_instruction(lang_code))
+
 SKU_SYSTEM_PROMPTS = {
     "standard": """మీరు ఒక professional Telugu AI receptionist. మీ పేరు Jovio.
 Business: {business_name} — general business / retail / coaching.
 Rules:
-- Respond in Telugu, natural Tanglish code-switching for product names, numbers, dates.
+__LANGUAGE_RULE__
 - SHORT responses (1-2 sentences). Phone call, not chat.
 - Warm, friendly, approachable tone.
 {shared_rules}""",
     "clinic": """మీరు ఒక professional Telugu AI receptionist ఒక clinic/hospital కోసం. మీ పేరు Jovio.
 Business: {business_name} — hospital / clinic / diagnostic lab.
 Rules:
-- Respond in Telugu, formal and careful tone — ఇది ఆరోగ్యానికి సంబంధించిన విషయం.
+__LANGUAGE_RULE__
+- Formal and careful tone regardless of language — ఇది ఆరోగ్యానికి సంబంధించిన విషయం.
 - SHORT responses (1-2 sentences). Phone call, not chat.
 - NEVER give medical advice, diagnosis, or suggest medication — always route clinical
-  questions to "డాక్టర్ గారు call back చేస్తారు".
+  questions to "డాక్టర్ గారు call back చేస్తారు" (translate that redirect into whichever
+  language the caller is using).
 {shared_rules}""",
     "real_estate": """మీరు ఒక professional Telugu AI receptionist ఒక real estate business కోసం. మీ పేరు Jovio.
 Business: {business_name} — real estate, site visits, property enquiries.
 Rules:
-- Respond in Telugu, warm and persuasive tone — site visit లేదా అపాయింట్‌మెంట్ బుక్ చేయమని encourage చేయండి.
+__LANGUAGE_RULE__
+- Warm and persuasive tone regardless of language — encourage a site visit or appointment.
 - SHORT responses (1-2 sentences). Phone call, not chat.
 - If caller mentions budget or location preference, acknowledge it and note it's passed to the team.
 {shared_rules}""",
     "premium": """మీరు ఒక professional Telugu AI receptionist ఒక premium/luxury business కోసం. మీ పేరు Jovio.
 Business: {business_name} — premium, high-value clientele.
 Rules:
-- Respond in Telugu, comfortably code-switch to English where it reads as more refined.
+__LANGUAGE_RULE__
+- Extra courteous, unhurried tone regardless of language.
 - SHORT responses (1-2 sentences). Phone call, not chat.
-- Extra courteous, unhurried tone.
 {shared_rules}""",
 }
 
@@ -132,7 +170,12 @@ def build_sku_prompt(profile: dict) -> str:
     )
 
 
-async def sarvam_stt(pcm_16k: bytes) -> str:
+async def sarvam_stt(pcm_16k: bytes) -> tuple:
+    """Returns (transcript, detected_language_code). language_code="unknown"
+    triggers Sarvam's automatic language detection — see the "Live language
+    switching" comment block above for why. Detected code falls back to ""
+    on any failure; callers should keep the session's previous language in
+    that case rather than resetting to a default."""
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wf:
         wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(PIPE_SR)
@@ -140,27 +183,29 @@ async def sarvam_stt(pcm_16k: bytes) -> str:
 
     if not cb.sarvam_stt_breaker.allow_request():
         log.warning("sarvam_stt: circuit OPEN, skipping live call")
-        return ""
+        return "", ""
 
     async with httpx.AsyncClient(timeout=20) as c:
         try:
             r = await c.post("https://api.sarvam.ai/speech-to-text",
                 headers={"api-subscription-key": SARVAM_KEY},
                 files={"file": ("audio.wav", buf.getvalue(), "audio/wav")},
-                data={"language_code":"te-IN", "model":"saarika:v2.5"})
+                data={"language_code":"unknown", "model":"saarika:v2.5"})
         except Exception as e:
             log.error("STT request failed: %s", e)
             cb.sarvam_stt_breaker.record_failure()
-            return ""
+            return "", ""
         if r.status_code != 200:
             log.error("STT %s: %s", r.status_code, r.text[:150])
             cb.sarvam_stt_breaker.record_failure()
-            return ""
+            return "", ""
         cb.sarvam_stt_breaker.record_success()
-        return r.json().get("transcript", "").strip()
+        body = r.json()
+        return body.get("transcript", "").strip(), body.get("language_code", "")
 
 
-async def sarvam_tts(text: str, voice: str = DEFAULT_VOICE) -> bytes:
+async def sarvam_tts(text: str, voice: str = DEFAULT_VOICE,
+                      target_language_code: str = DEFAULT_LANGUAGE) -> bytes:
     if not cb.sarvam_tts_breaker.allow_request():
         log.warning("sarvam_tts: circuit OPEN, skipping live call")
         return b""
@@ -169,7 +214,7 @@ async def sarvam_tts(text: str, voice: str = DEFAULT_VOICE) -> bytes:
         try:
             r = await c.post("https://api.sarvam.ai/text-to-speech",
                 headers={"api-subscription-key": SARVAM_KEY},
-                json={"inputs":[text], "target_language_code":"te-IN",
+                json={"inputs":[text], "target_language_code":target_language_code,
                       "speaker":voice, "model":"bulbul:v2"})
         except Exception as e:
             log.error("TTS request failed: %s", e)
@@ -411,6 +456,7 @@ class Session:
         self.recording_buf = bytearray()
         self.call_row_id: Optional[str] = None
         self.voice_profile_id: Optional[str] = None
+        self.current_language: str = DEFAULT_LANGUAGE
         self.started_at: Optional[float] = None
 
     async def send_pcm(self, pcm_bytes: bytes):
@@ -456,7 +502,8 @@ class Session:
             return
         try:
             log.info("speak_dynamic: %s", text[:60])
-            pcm_22k = await sarvam_tts(text, self.tenant.get("voice_profile", DEFAULT_VOICE))
+            pcm_22k = await sarvam_tts(text, self.tenant.get("voice_profile", DEFAULT_VOICE),
+                                       self.current_language)
             if not pcm_22k:
                 # Live TTS failed (or the circuit breaker skipped it entirely) —
                 # caller should hear SOMETHING, not dead air. Falls back to a
@@ -596,22 +643,34 @@ async def handle_exotel_ws(ws: WebSocket):
 
 async def _handle_utterance(s: Session, pcm: bytes):
     try:
-        text = await sarvam_stt(pcm)
+        text, detected_lang = await sarvam_stt(pcm)
         if not text:
             return
         log.info("caller: %s", text)
+
+        # Live language switching — only move to a language we actually
+        # support and were confident enough to detect. Empty/unknown
+        # detection keeps whatever language the session was already using,
+        # rather than snapping back to the default mid-conversation.
+        if detected_lang in LANGUAGE_NAMES and detected_lang != s.current_language:
+            log.info("language switch: %s -> %s",
+                      LANGUAGE_NAMES.get(s.current_language, s.current_language),
+                      LANGUAGE_NAMES[detected_lang])
+            s.current_language = detected_lang
+
         s.history.append({"role":"user","content":text})
+
+        sys_for_turn = apply_language(s._sys, s.current_language)
 
         # RAG: only runs when a real voice_profile is provisioned (demo
         # fallback has none, so this is a no-op there). A failure at any
         # step inside retrieve_context just means no extra context for
         # this turn — never blocks or delays the call beyond the lookup.
-        sys_for_turn = s._sys
         if s.voice_profile_id:
             snippets = await knowledge.retrieve_context(s.voice_profile_id, text)
             if snippets:
                 log.info("knowledge base: %d snippet(s) matched", len(snippets))
-                sys_for_turn = knowledge.augment_prompt(s._sys, snippets)
+                sys_for_turn = knowledge.augment_prompt(sys_for_turn, snippets)
 
         reply = await gemini_reply(s.history, sys_for_turn)
         log.info("ai: %s", reply)
